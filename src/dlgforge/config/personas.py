@@ -10,6 +10,40 @@ import yaml
 from dlgforge.utils import resolve_path
 
 
+class UniformPersonaSampler:
+    def __init__(
+        self,
+        user_personas: List[Dict[str, Any]],
+        assistant_personas: List[Dict[str, Any]],
+        rng: random.Random,
+    ) -> None:
+        self._user_personas = [item for item in user_personas if isinstance(item, dict)]
+        self._assistant_personas = [item for item in assistant_personas if isinstance(item, dict)]
+        self._rng = rng
+        self._user_cycle: List[Dict[str, Any]] = []
+        self._assistant_cycle: List[Dict[str, Any]] = []
+
+    def _next_choice(self, pool: List[Dict[str, Any]], cycle: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if not pool:
+            return {}
+        if not cycle:
+            cycle.extend(pool)
+            self._rng.shuffle(cycle)
+        return cycle.pop()
+
+    def sample(self) -> Tuple[str, str, Dict[str, str]]:
+        user_choice = self._next_choice(self._user_personas, self._user_cycle)
+        assistant_choice = self._next_choice(self._assistant_personas, self._assistant_cycle)
+        return (
+            format_persona(user_choice),
+            format_persona(assistant_choice),
+            {
+                "user_id": str(user_choice.get("id", "")),
+                "assistant_id": str(assistant_choice.get("id", "")),
+            },
+        )
+
+
 def select_personas(cfg: Dict[str, Any], project_root: Path, config_path: Path) -> Tuple[str, str, Dict[str, str]]:
     if not resolve_personas_enabled(cfg):
         return "", "", {}
@@ -47,6 +81,19 @@ def resolve_question_seed(cfg: Dict[str, Any]) -> str:
 def build_persona_rng(cfg: Dict[str, Any]) -> random.Random:
     seed = resolve_question_seed(cfg) or datetime.utcnow().isoformat()
     return random.Random(f"persona-{seed}")
+
+
+def build_uniform_persona_sampler(
+    cfg: Dict[str, Any],
+    project_root: Path,
+    config_path: Path,
+) -> UniformPersonaSampler:
+    personas = load_personas(cfg, project_root, config_path) if resolve_personas_enabled(cfg) else {"user": [], "assistant": []}
+    return UniformPersonaSampler(
+        user_personas=personas.get("user", []),
+        assistant_personas=personas.get("assistant", []),
+        rng=build_persona_rng(cfg),
+    )
 
 
 def load_personas(cfg: Dict[str, Any], project_root: Path, config_path: Path) -> Dict[str, List[Dict[str, Any]]]:

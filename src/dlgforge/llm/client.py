@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
 LOGGER = logging.getLogger("dlgforge.llm")
 
@@ -20,6 +20,7 @@ class ChatResult:
 class OpenAIModelClient:
     def __init__(self) -> None:
         self._client_cache: Dict[Tuple[str, str, str], OpenAI] = {}
+        self._async_client_cache: Dict[Tuple[str, str, str], AsyncOpenAI] = {}
 
     def complete(
         self,
@@ -34,10 +35,69 @@ class OpenAIModelClient:
             raise ValueError("LLM model is required for each active agent.")
 
         client = self._get_client(settings)
-        payload: Dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-        }
+        payload = self._build_payload(
+            settings=settings,
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            response_format=response_format,
+        )
+
+        start = time.perf_counter()
+        LOGGER.info(
+            f"[llm] request model={model} messages={len(messages)} tools={len(tools) if tools else 0}"
+        )
+        try:
+            response = client.chat.completions.create(**payload)
+        except Exception as err:
+            LOGGER.error(f"[llm] request failed model={model}: {err}")
+            raise
+        return self._to_chat_result(model=model, response=response, start=start)
+
+    async def acomplete(
+        self,
+        settings: Dict[str, Any],
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str | Dict[str, Any]] = None,
+        response_format: Optional[Dict[str, Any]] = None,
+    ) -> ChatResult:
+        model = (settings.get("model") or "").strip()
+        if not model:
+            raise ValueError("LLM model is required for each active agent.")
+
+        client = self._get_async_client(settings)
+        payload = self._build_payload(
+            settings=settings,
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            response_format=response_format,
+        )
+
+        start = time.perf_counter()
+        LOGGER.info(
+            f"[llm] request model={model} messages={len(messages)} tools={len(tools) if tools else 0}"
+        )
+        try:
+            response = await client.chat.completions.create(**payload)
+        except Exception as err:
+            LOGGER.error(f"[llm] request failed model={model}: {err}")
+            raise
+        return self._to_chat_result(model=model, response=response, start=start)
+
+    def _build_payload(
+        self,
+        settings: Dict[str, Any],
+        model: str,
+        messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]],
+        tool_choice: Optional[str | Dict[str, Any]],
+        response_format: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"model": model, "messages": messages}
 
         if settings.get("temperature") is not None:
             payload["temperature"] = settings["temperature"]
@@ -60,16 +120,9 @@ class OpenAIModelClient:
 
         if response_format:
             payload["response_format"] = response_format
+        return payload
 
-        start = time.perf_counter()
-        LOGGER.info(
-            f"[llm] request model={model} messages={len(messages)} tools={len(tools) if tools else 0}"
-        )
-        try:
-            response = client.chat.completions.create(**payload)
-        except Exception as err:
-            LOGGER.error(f"[llm] request failed model={model}: {err}")
-            raise
+    def _to_chat_result(self, model: str, response: Any, start: float) -> ChatResult:
         choice = response.choices[0]
         message = choice.message
 
@@ -111,4 +164,23 @@ class OpenAIModelClient:
 
         client = OpenAI(**kwargs)
         self._client_cache[cache_key] = client
+        return client
+
+    def _get_async_client(self, settings: Dict[str, Any]) -> AsyncOpenAI:
+        base_url = str(settings.get("base_url") or "").strip()
+        api_key = str(settings.get("api_key") or "").strip() or "EMPTY"
+        max_retries = str(settings.get("max_retries") if settings.get("max_retries") is not None else "")
+        cache_key = (base_url, api_key, max_retries)
+        client = self._async_client_cache.get(cache_key)
+        if client is not None:
+            return client
+
+        kwargs: Dict[str, Any] = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        if settings.get("max_retries") is not None:
+            kwargs["max_retries"] = settings["max_retries"]
+
+        client = AsyncOpenAI(**kwargs)
+        self._async_client_cache[cache_key] = client
         return client

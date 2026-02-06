@@ -1,6 +1,12 @@
 run:
   n_turns: 2
-  target_language: morocco
+  batch_size: 64
+  total_samples: 1024
+  min_turns: 2
+  max_turns: 12
+  turn_count_distribution: poisson
+  turn_count_mean: 6.0
+  target_languages: ["morocco", "msa", "gulf", "english", "levantine"] # list of target languages; total_samples is generated per language
   seed_question: ""
   question_seed: ""
   run_id: ""
@@ -69,11 +75,12 @@ tools:
 
 personas:
   enabled: true
-  path: personas.yaml
+  path: src/dlgforge/prompts/personas.yaml
 
 judge:
   enabled: true
   mode: online # online will make the judging in generation time, offline will not and will run separatly
+  granularity: turn # turn or conversation
   reasons:
     - irrelevant
     - incorrect
@@ -86,9 +93,16 @@ judge:
 
 saving:
   output_dir: outputs
+  output_columns:
+    messages: messages
+    messages_with_tools: messages_with_tools
+    metadata: metadata
+    user_reasoning: user_reasoning
+    assistant_reasoning: assistant_reasoning
+    judge: judge
   hf_push:
-    enabled: false
-    auto_push_on_run: false
+    enabled: true
+    auto_push_on_run: true
     repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
     repo_type: dataset
     export_dir: hf_export

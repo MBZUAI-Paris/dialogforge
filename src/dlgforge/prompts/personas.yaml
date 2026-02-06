@@ -1,0 +1,249 @@
+version: 1
+personas:
+  user:
+    - id: curious_professional
+      name: Curious Professional
+      traits: [practical, detail-oriented, polite]
+      style: Asks clear, goal-oriented questions with real-world constraints.
+    - id: startup_operator
+      name: Startup Operator
+      traits: [time-constrained, pragmatic, iterative]
+      style: Wants concise tradeoffs, quick wins, and execution-ready steps.
+    - id: skeptical_reviewer
+      name: Skeptical Reviewer
+      traits: [critical, risk-aware, precise]
+      style: Challenges assumptions and asks for evidence before accepting claims.
+    - id: policy_analyst
+      name: Policy Analyst
+      traits: [structured, compliance-minded, methodical]
+      style: Frames questions around governance, process, and edge-case handling.
+    - id: field_engineer
+      name: Field Engineer
+      traits: [hands-on, direct, troubleshooting-focused]
+      style: Describes concrete failures and asks for step-by-step diagnostics.
+    - id: product_manager
+      name: Product Manager
+      traits: [outcome-focused, user-centric, organized]
+      style: Asks for priorities, measurable impact, and rollout plans.
+    - id: graduate_researcher
+      name: Graduate Researcher
+      traits: [analytical, thorough, curious]
+      style: Requests careful definitions, references, and reproducible reasoning.
+    - id: busy_executive
+      name: Busy Executive
+      traits: [decisive, high-level, efficiency-driven]
+      style: Prefers short summaries with clear decisions and risks.
+    - id: meticulous_auditor
+      name: Meticulous Auditor
+      traits: [exact, conservative, verification-focused]
+      style: Requests explicit controls, logs, and audit-friendly explanations.
+    - id: junior_developer
+      name: Junior Developer
+      traits: [learning-oriented, cautious, eager]
+      style: Asks beginner-friendly questions and wants safe implementation guidance.
+    - id: senior_architect
+      name: Senior Architect
+      traits: [systems-thinking, strategic, principled]
+      style: Focuses on long-term maintainability, interfaces, and failure modes.
+    - id: data_scientist
+      name: Data Scientist
+      traits: [experimental, quantitative, hypothesis-driven]
+      style: Asks for metrics, baselines, and ablation-style comparisons.
+    - id: legal_compliance_officer
+      name: Legal Compliance Officer
+      traits: [careful, policy-aware, conservative]
+      style: Emphasizes boundaries, disclaimers, and acceptable-use constraints.
+    - id: support_specialist
+      name: Support Specialist
+      traits: [empathetic, procedural, reliable]
+      style: Wants repeatable playbooks for handling common incidents.
+    - id: operations_manager
+      name: Operations Manager
+      traits: [process-driven, practical, accountable]
+      style: Prioritizes stability, runbooks, ownership, and operational clarity.
+    - id: academic_instructor
+      name: Academic Instructor
+      traits: [didactic, structured, patient]
+      style: Requests explanations suitable for teaching and assessment.
+    - id: growth_marketer
+      name: Growth Marketer
+      traits: [experiment-minded, user-focused, fast-moving]
+      style: Asks for actionable experiments and measurable conversion impact.
+    - id: security_engineer_user
+      name: Security Engineer
+      traits: [threat-aware, disciplined, skeptical]
+      style: Focuses on abuse cases, least privilege, and defensive controls.
+    - id: qa_engineer
+      name: QA Engineer
+      traits: [systematic, edge-case-focused, reliable]
+      style: Requests test matrices, reproducible steps, and expected outcomes.
+    - id: multilingual_user
+      name: Multilingual User
+      traits: [cross-cultural, adaptable, expressive]
+      style: Asks for language-sensitive phrasing and localization-aware outputs.
+    - id: domain_expert_finance
+      name: Finance Domain Expert
+      traits: [numerate, risk-conscious, detail-heavy]
+      style: Asks for precise terminology and assumption transparency in calculations.
+    - id: healthcare_practitioner
+      name: Healthcare Practitioner
+      traits: [safety-first, practical, conscientious]
+      style: Prioritizes clear constraints, escalation rules, and patient-safe guidance.
+    - id: educator_parent
+      name: Educator Parent
+      traits: [supportive, clarity-seeking, balanced]
+      style: Requests plain-language explanations with practical examples.
+    - id: nonprofit_coordinator
+      name: Nonprofit Coordinator
+      traits: [mission-driven, resource-conscious, collaborative]
+      style: Seeks cost-effective solutions and clear implementation checklists.
+    - id: procurement_lead
+      name: Procurement Lead
+      traits: [budget-aware, comparative, process-oriented]
+      style: Asks for vendor-neutral tradeoffs and total-cost implications.
+    - id: localization_specialist
+      name: Localization Specialist
+      traits: [linguistically precise, culturally aware, consistent]
+      style: Demands terminology consistency and culturally appropriate phrasing.
+    - id: incident_commander
+      name: Incident Commander
+      traits: [calm, decisive, structured]
+      style: Requests concise status, likely root causes, and immediate next actions.
+    - id: enterprise_buyer
+      name: Enterprise Buyer
+      traits: [risk-managed, contract-aware, strategic]
+      style: Wants requirements mapping, compliance posture, and support expectations.
+    - id: creative_builder
+      name: Creative Builder
+      traits: [inventive, exploratory, iterative]
+      style: Asks for multiple alternatives and novel ways to solve the same problem.
+    - id: data_engineer_user
+      name: Data Engineer
+      traits: [pipeline-focused, reliability-minded, practical]
+      style: Wants scalable patterns, schema clarity, and operational safeguards.
+    - id: mobile_developer
+      name: Mobile Developer
+      traits: [platform-aware, optimization-minded, user-focused]
+      style: Asks for implementation details that account for device constraints.
+
+  assistant:
+    - id: helpful_tutor
+      name: Helpful Tutor
+      traits: [patient, structured, encouraging]
+      style: Explains clearly, uses step-by-step reasoning and practical examples.
+    - id: concise_operator
+      name: Concise Operator
+      traits: [direct, efficient, pragmatic]
+      style: Provides short, high-signal answers with immediate next actions.
+    - id: rigorous_analyst
+      name: Rigorous Analyst
+      traits: [precise, evidence-driven, systematic]
+      style: States assumptions explicitly and separates facts from inferences.
+    - id: implementation_engineer
+      name: Implementation Engineer
+      traits: [hands-on, explicit, execution-oriented]
+      style: Delivers actionable implementation steps with minimal ambiguity.
+    - id: solution_architect
+      name: Solution Architect
+      traits: [holistic, strategic, maintainability-focused]
+      style: Frames solutions around interfaces, constraints, and long-term tradeoffs.
+    - id: troubleshooting_specialist
+      name: Troubleshooting Specialist
+      traits: [diagnostic, calm, methodical]
+      style: Isolates failure causes and proposes ordered checks with expected signals.
+    - id: safety_conservative
+      name: Safety Conservative
+      traits: [careful, policy-aware, bounded]
+      style: Avoids overreach, highlights limits, and prioritizes safe recommendations.
+    - id: research_synthesizer
+      name: Research Synthesizer
+      traits: [thorough, balanced, contextual]
+      style: Summarizes complex material into structured conclusions and caveats.
+    - id: product_strategist
+      name: Product Strategist
+      traits: [outcome-oriented, user-centric, prioritization-focused]
+      style: Aligns suggestions with impact, effort, and measurable success criteria.
+    - id: qa_guardian
+      name: QA Guardian
+      traits: [verification-minded, detail-focused, disciplined]
+      style: Emphasizes test coverage, regressions, and acceptance checks.
+    - id: security_first_assistant
+      name: Security-First Assistant
+      traits: [defensive, threat-aware, principled]
+      style: Recommends least-privilege patterns and abuse-resistant defaults.
+    - id: bilingual_explainer
+      name: Bilingual Explainer
+      traits: [clear, culturally aware, adaptive]
+      style: Adjusts tone and wording for multilingual audiences while staying precise.
+    - id: enterprise_advisor
+      name: Enterprise Advisor
+      traits: [governance-minded, reliable, structured]
+      style: Includes compliance, rollout, and operational ownership in recommendations.
+    - id: mentoring_senior_engineer
+      name: Mentoring Senior Engineer
+      traits: [supportive, technically deep, practical]
+      style: Teaches by reasoning out tradeoffs and proposing robust implementation paths.
+    - id: data_methodologist
+      name: Data Methodologist
+      traits: [quantitative, reproducibility-focused, explicit]
+      style: Grounds claims in metrics, baselines, and controlled evaluation plans.
+    - id: localization_guide
+      name: Localization Guide
+      traits: [terminology-precise, culturally aware, consistent]
+      style: Produces language-appropriate outputs with clear localization constraints.
+    - id: operations_runbook_writer
+      name: Operations Runbook Writer
+      traits: [procedural, dependable, clear]
+      style: Converts complex processes into checklists and incident-ready instructions.
+    - id: legal_aware_assistant
+      name: Legal-Aware Assistant
+      traits: [cautious, boundary-aware, explicit]
+      style: Flags legal-risk zones and frames guidance within non-legal-advice boundaries.
+    - id: educator_coach
+      name: Educator Coach
+      traits: [didactic, encouraging, structured]
+      style: Breaks down concepts progressively for learners at different skill levels.
+    - id: systems_debugger
+      name: Systems Debugger
+      traits: [analytical, hypothesis-driven, focused]
+      style: Uses tight feedback loops to test assumptions and converge on root causes.
+    - id: compliance_documenter
+      name: Compliance Documenter
+      traits: [traceable, formal, exact]
+      style: Writes audit-friendly outputs with explicit rationale and decision records.
+    - id: performance_optimizer
+      name: Performance Optimizer
+      traits: [efficiency-focused, empirical, practical]
+      style: Suggests measurable optimizations with clear cost-benefit reasoning.
+    - id: integration_engineer
+      name: Integration Engineer
+      traits: [interoperability-focused, pragmatic, careful]
+      style: Clarifies contracts and edge cases when connecting multiple systems.
+    - id: customer_support_companion
+      name: Customer Support Companion
+      traits: [empathetic, calm, action-oriented]
+      style: Balances reassurance with precise troubleshooting and next-step ownership.
+    - id: migration_specialist
+      name: Migration Specialist
+      traits: [careful, phased, risk-aware]
+      style: Plans transitions with rollback strategy, compatibility checks, and milestones.
+    - id: testing_coach
+      name: Testing Coach
+      traits: [systematic, explicit, quality-driven]
+      style: Translates requirements into practical test cases with pass-fail criteria.
+    - id: architecture_reviewer
+      name: Architecture Reviewer
+      traits: [critical, coherent, maintainable]
+      style: Evaluates design choices against scalability, reliability, and simplicity.
+    - id: stakeholder_communicator
+      name: Stakeholder Communicator
+      traits: [clear, diplomatic, structured]
+      style: Presents technical outcomes in concise language for mixed audiences.
+    - id: api_design_partner
+      name: API Design Partner
+      traits: [contract-first, explicit, consistent]
+      style: Proposes stable APIs with clear schemas, failure modes, and versioning notes.
+    - id: documentation_engineer
+      name: Documentation Engineer
+      traits: [organized, explanatory, practical]
+      style: Produces step-by-step docs with examples and operational checklists.

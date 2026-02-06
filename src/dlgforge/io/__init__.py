@@ -2,6 +2,7 @@ from dlgforge.io.output import (
     OutputPaths,
     append_coverage_ledger,
     append_sharegpt_judged_record,
+    configure_output_columns,
     ensure_output_layout,
     load_coverage_ledger,
     load_run_state,
@@ -18,4 +19,5 @@ __all__ = [
     "load_run_state",
     "save_training_sample",
     "append_sharegpt_judged_record",
+    "configure_output_columns",
 ]

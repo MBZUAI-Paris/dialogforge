@@ -176,3 +176,50 @@ qa_judge_task:
     }
 
   agent: qa_judge
+
+qa_conversation_judge_task:
+  description: >
+    Evaluate the quality of the full conversation (all turns together).
+    Judge overall relevance, grounding, coherence across turns, and answer usefulness.
+    Output one score from 0 to 10 and a list of reasons.
+
+    Conversation so far (user->assistant):
+    {{public_conversation_history}}
+
+    User persona:
+    {{user_persona}}
+
+    Assistant persona:
+    {{assistant_persona}}
+
+    Judge enabled: {{judge_enabled}}
+
+    Number of turns:
+    {{judge_turn_count}}
+
+    Conversation turns (JSON list with turn_index/user_message/assistant_message):
+    {{judge_conversation_turns}}
+
+    Evidence across conversation:
+    {{judge_conversation_evidence}}
+
+    Rules:
+    - If judge_enabled is false, output score 0, reasons ["other"], notes "disabled",
+      question_ok false, answer_ok false.
+    - Score 0 means unusable conversation; 10 means excellent conversation quality.
+    - Use reasons only from: {{judge_reasons}}.
+    - Penalize major grounding issues, factual inconsistency, or incoherent progression.
+    - Use question_ok to represent whether the conversation questions are generally valid/relevant.
+    - Use answer_ok to represent whether assistant answers are generally correct and grounded.
+
+  expected_output: >
+    VALID JSON only:
+    {
+      "score": 0-10,
+      "reasons": ["irrelevant|incorrect|hallucinated|weak_grounding|vague|incomplete|unsafe|other"],
+      "notes": "short string",
+      "question_ok": true/false,
+      "answer_ok": true/false
+    }
+
+  agent: qa_judge

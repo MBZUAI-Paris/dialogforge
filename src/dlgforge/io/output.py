@@ -8,6 +8,40 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
+_SFT_COLUMN_DEFAULTS: Dict[str, str] = {
+    "messages": "messages",
+    "messages_with_tools": "messages_with_tools",
+    "metadata": "metadata",
+    "user_reasoning": "user_reasoning",
+    "assistant_reasoning": "assistant_reasoning",
+    "judge": "judge",
+}
+_SFT_COLUMN_ALIASES: Dict[str, str] = {
+    "message_with_tools": "messages_with_tools",
+}
+_SFT_COLUMNS: Dict[str, str] = dict(_SFT_COLUMN_DEFAULTS)
+
+
+def configure_output_columns(columns: Optional[Dict[str, Any]]) -> None:
+    configured = dict(_SFT_COLUMN_DEFAULTS)
+    if isinstance(columns, dict):
+        for key, raw_value in columns.items():
+            source_key = str(key).strip()
+            target_key = _SFT_COLUMN_ALIASES.get(source_key, source_key)
+            if target_key not in configured:
+                continue
+            value = str(raw_value or "").strip()
+            if value:
+                configured[target_key] = value
+
+    _SFT_COLUMNS.clear()
+    _SFT_COLUMNS.update(configured)
+
+
+def _sft_columns() -> Dict[str, str]:
+    return _SFT_COLUMNS
+
+
 @dataclass
 class OutputPaths:
     project_root: Path
@@ -133,6 +167,7 @@ def save_training_sample(
         "qa_generation_plan": last_turn.get("qa_generation") or {},
         "kb_final_answer": last_turn.get("kb_answer") or {},
         "qa_judge": last_turn.get("qa_judge") or {},
+        "conversation_judge": inputs.get("conversation_judge") or {},
         "turns": turns,
         "conversation_history": conversation_history,
         "messages": messages,
@@ -164,19 +199,21 @@ def append_sharegpt_judged_record(
     inputs: Dict[str, Any],
     turns: List[Dict[str, Any]],
     messages: Optional[List[Dict[str, Any]]] = None,
+    conversation_judge: Optional[Dict[str, Any]] = None,
 ) -> None:
     ensure_output_layout(paths)
+    columns = _sft_columns()
     sft_messages = _sharegpt_messages_from_turns(turns, fallback=messages or [])
     sft_messages_with_tools = _sharegpt_messages_with_tools_from_turns(turns, fallback=messages or [])
     metadata = _build_sft_metadata(conversation_id, timestamp, inputs, turns)
-    judge = _build_judge_payload(turns)
+    judge = _build_judge_payload(turns, conversation_judge=conversation_judge or inputs.get("conversation_judge"))
     record = {
-        "messages": sft_messages,
-        "messages_with_tools": sft_messages_with_tools,
-        "metadata": metadata,
-        "user_reasoning": _build_user_reasoning(turns),
-        "assistant_reasoning": _build_assistant_reasoning(turns),
-        "judge": judge,
+        columns["messages"]: sft_messages,
+        columns["messages_with_tools"]: sft_messages_with_tools,
+        columns["metadata"]: metadata,
+        columns["user_reasoning"]: _build_user_reasoning(turns),
+        columns["assistant_reasoning"]: _build_assistant_reasoning(turns),
+        columns["judge"]: judge,
     }
     with paths.conversation_sft_judged_file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
@@ -231,6 +268,7 @@ def _write_conversation_artifacts(
         "messages_with_tools": messages_with_tools,
         "user_reasoning": _build_user_reasoning(turns),
         "assistant_reasoning": _build_assistant_reasoning(turns),
+        "conversation_judge": inputs.get("conversation_judge") or {},
         "turns": turns,
         "conversation_history": conversation_history,
         "raw_results": raw_results,
@@ -249,6 +287,16 @@ def _write_conversation_artifacts(
         handle.write(json.dumps(index_entry, ensure_ascii=False, default=str) + "\n")
 
     _append_sharegpt_record(paths, conversation_id, timestamp, inputs, turns, messages)
+    if _should_append_judged_record(inputs, turns):
+        append_sharegpt_judged_record(
+            paths=paths,
+            conversation_id=conversation_id,
+            timestamp=timestamp,
+            inputs=inputs,
+            turns=turns,
+            messages=messages,
+            conversation_judge=inputs.get("conversation_judge"),
+        )
 
     with paths.turn_dataset_file.open("a", encoding="utf-8") as handle:
         for turn in turns:
@@ -271,11 +319,14 @@ def _write_conversation_artifacts(
                 "notes_for_assistant": qa.get("notes_for_assistant", []),
                 "reasoning_trace": _normalize_reasoning_trace(kb.get("reasoning_trace")),
                 "did_web_search": kb.get("did_web_search"),
+                "judge_granularity": inputs.get("judge_granularity"),
                 "judge_score": judge.get("score"),
                 "judge_reasons": judge.get("reasons", []),
                 "judge_notes": judge.get("notes"),
                 "judge_question_ok": judge.get("question_ok"),
                 "judge_answer_ok": judge.get("answer_ok"),
+                "conversation_judge_score": ((inputs.get("conversation_judge") or {}).get("score")),
+                "conversation_judge_reasons": ((inputs.get("conversation_judge") or {}).get("reasons", [])),
             }
             handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
@@ -288,18 +339,39 @@ def _append_sharegpt_record(
     turns: List[Dict[str, Any]],
     messages: List[Dict[str, Any]],
 ) -> None:
+    columns = _sft_columns()
     sft_messages = _sharegpt_messages_from_turns(turns, fallback=messages)
     sft_messages_with_tools = _sharegpt_messages_with_tools_from_turns(turns, fallback=messages)
     metadata = _build_sft_metadata(conversation_id, timestamp, inputs, turns)
     record = {
-        "messages": sft_messages,
-        "messages_with_tools": sft_messages_with_tools,
-        "metadata": metadata,
-        "user_reasoning": _build_user_reasoning(turns),
-        "assistant_reasoning": _build_assistant_reasoning(turns),
+        columns["messages"]: sft_messages,
+        columns["messages_with_tools"]: sft_messages_with_tools,
+        columns["metadata"]: metadata,
+        columns["user_reasoning"]: _build_user_reasoning(turns),
+        columns["assistant_reasoning"]: _build_assistant_reasoning(turns),
     }
     with paths.conversation_sft_file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+
+
+def _should_append_judged_record(inputs: Dict[str, Any], turns: List[Dict[str, Any]]) -> bool:
+    conversation_judge = inputs.get("conversation_judge")
+    if isinstance(conversation_judge, dict) and conversation_judge:
+        notes = str(conversation_judge.get("notes") or "").strip().lower()
+        if notes != "disabled":
+            return True
+
+    if bool(inputs.get("judge_enabled")):
+        return True
+
+    for turn in turns:
+        judge = turn.get("qa_judge")
+        if not isinstance(judge, dict) or not judge:
+            continue
+        notes = str(judge.get("notes") or "").strip().lower()
+        if notes != "disabled":
+            return True
+    return False
 
 
 def _sharegpt_messages_from_turns(turns: List[Dict[str, Any]], fallback: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -430,6 +502,7 @@ def _build_sft_metadata(
         "timestamp": timestamp,
         "n_turns": inputs.get("n_turns") or len(turns),
         "language": inputs.get("target_language"),
+        "judge_granularity": inputs.get("judge_granularity"),
         "personas": {
             "user": inputs.get("user_persona"),
             "assistant": inputs.get("assistant_persona"),
@@ -509,7 +582,10 @@ def _build_assistant_reasoning(turns: List[Dict[str, Any]]) -> List[Dict[str, An
     return rows
 
 
-def _build_judge_payload(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _build_judge_payload(
+    turns: List[Dict[str, Any]],
+    conversation_judge: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     per_turn: List[Dict[str, Any]] = []
     for turn in turns:
         judge = turn.get("qa_judge") or {}
@@ -532,6 +608,7 @@ def _build_judge_payload(turns: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "per_turn": per_turn,
         "avg_score": _avg_score([item.get("score") for item in per_turn]),
+        "conversation": conversation_judge if isinstance(conversation_judge, dict) else {},
     }
 
 

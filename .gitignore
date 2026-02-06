@@ -10,6 +10,7 @@ src/dlgforge/.env
 
 # Runtime artifacts
 outputs/
+knowledge/
 knowledge_index/
 logs/
 

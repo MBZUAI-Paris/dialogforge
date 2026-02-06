@@ -14,6 +14,19 @@ from dlgforge.llm.settings import resolve_agent_used_name
 from dlgforge.utils import deep_merge
 
 
+_OUTPUT_COLUMN_DEFAULTS: Dict[str, str] = {
+    "messages": "messages",
+    "messages_with_tools": "messages_with_tools",
+    "metadata": "metadata",
+    "user_reasoning": "user_reasoning",
+    "assistant_reasoning": "assistant_reasoning",
+    "judge": "judge",
+}
+_OUTPUT_COLUMN_ALIASES: Dict[str, str] = {
+    "message_with_tools": "messages_with_tools",
+}
+
+
 def load_config(config_path: str | Path) -> Tuple[Dict[str, Any], Path, Path]:
     path = Path(config_path).expanduser().resolve()
     if not path.exists():
@@ -44,7 +57,12 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
 
     env_map = {
         "N_TURNS": (run_cfg, "n_turns", int),
-        "TARGET_LANGUAGE": (run_cfg, "target_language", str),
+        "BATCH_SIZE": (run_cfg, "batch_size", int),
+        "TOTAL_SAMPLES": (run_cfg, "total_samples", int),
+        "MIN_TURNS": (run_cfg, "min_turns", int),
+        "MAX_TURNS": (run_cfg, "max_turns", int),
+        "TURN_COUNT_DISTRIBUTION": (run_cfg, "turn_count_distribution", str),
+        "TURN_COUNT_MEAN": (run_cfg, "turn_count_mean", float),
         "QUESTION": (run_cfg, "seed_question", str),
         "QUESTION_SEED": (run_cfg, "question_seed", str),
         "RUN_ID": (run_cfg, "run_id", str),
@@ -68,6 +86,7 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
         "QUESTION_DEDUP_RETRIES": (coverage_cfg, "question_dedup_retries", int),
         "ENABLE_WEB_TOOLS": (tools_cfg, "web_search_enabled", _as_bool),
         "JUDGE_MODE": (judge_cfg, "mode", str),
+        "JUDGE_GRANULARITY": (judge_cfg, "granularity", str),
         "JUDGE_ENABLED": (judge_cfg, "enabled", _as_bool),
         "OUTPUT_DIR": (saving_cfg, "output_dir", str),
         "HF_PUSH_ENABLED": (hf_push_cfg, "enabled", _as_bool),
@@ -106,6 +125,15 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
     if encode_kwargs_json is not None:
         retrieval_cfg["embedding_encode_kwargs"] = encode_kwargs_json
 
+    target_languages = _parse_list_env("TARGET_LANGUAGES")
+    if target_languages is not None:
+        run_cfg["target_languages"] = target_languages
+    else:
+        # Backward compatibility for legacy single-language env override.
+        legacy_target_language = (os.getenv("TARGET_LANGUAGE") or "").strip()
+        if legacy_target_language:
+            run_cfg["target_languages"] = [legacy_target_language]
+
 
 def _parse_json_env(env_name: str) -> Dict[str, Any] | None:
     raw = os.getenv(env_name)
@@ -120,6 +148,16 @@ def _parse_json_env(env_name: str) -> Dict[str, Any] | None:
     return parsed
 
 
+def _parse_list_env(env_name: str) -> List[str] | None:
+    raw = os.getenv(env_name)
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text:
+        return []
+    return [part.strip() for part in text.split(",") if part.strip()]
+
+
 def _as_bool(raw: str) -> bool:
     return str(raw).strip().lower() not in {"0", "false", "no", "off"}
 
@@ -130,12 +168,48 @@ def resolve_output_dir(cfg: Dict[str, Any], project_root: Path) -> Path:
     return raw if raw.is_absolute() else (project_root / raw)
 
 
+def resolve_output_columns(cfg: Dict[str, Any]) -> Dict[str, str]:
+    configured = dict(_OUTPUT_COLUMN_DEFAULTS)
+    columns_cfg = (cfg.get("saving", {}) or {}).get("output_columns", {})
+    if not isinstance(columns_cfg, dict):
+        return configured
+
+    for key, raw_value in columns_cfg.items():
+        source_key = str(key).strip()
+        target_key = _OUTPUT_COLUMN_ALIASES.get(source_key, source_key)
+        if target_key not in configured:
+            continue
+        value = str(raw_value or "").strip()
+        if value:
+            configured[target_key] = value
+    return configured
+
+
 def resolve_question(cfg: Dict[str, Any]) -> str:
     return str((cfg.get("run", {}) or {}).get("seed_question", "") or "")
 
 
-def resolve_target_language(cfg: Dict[str, Any]) -> str:
-    return str((cfg.get("run", {}) or {}).get("target_language", "en") or "en")
+def resolve_target_languages(cfg: Dict[str, Any]) -> List[str]:
+    run_cfg = cfg.get("run", {}) or {}
+    raw = run_cfg.get("target_languages", [])
+    if isinstance(raw, str):
+        raw = [part.strip() for part in raw.split(",") if part.strip()]
+    if not isinstance(raw, list):
+        raw = []
+    cleaned: List[str] = []
+    for item in raw:
+        value = str(item or "").strip()
+        if value:
+            cleaned.append(value)
+    deduped = list(dict.fromkeys(cleaned))
+    if deduped:
+        return deduped
+
+    # Backward compatibility with older configs that still define `target_language`.
+    legacy_target_language = str(run_cfg.get("target_language", "") or "").strip()
+    if legacy_target_language:
+        return [legacy_target_language]
+    return ["en"]
 
 
 def resolve_question_seed(cfg: Dict[str, Any]) -> str:
@@ -157,6 +231,76 @@ def resolve_n_turns(cfg: Dict[str, Any], fallback: int = 1) -> int:
     except (TypeError, ValueError):
         return fallback
     return n if n > 0 else 1
+
+
+def resolve_batch_size(cfg: Dict[str, Any], fallback: int = 1) -> int:
+    raw = (cfg.get("run", {}) or {}).get("batch_size", fallback)
+    try:
+        size = int(raw)
+    except (TypeError, ValueError):
+        return fallback
+    return size if size > 0 else fallback
+
+
+def resolve_total_samples(cfg: Dict[str, Any], fallback: int = 0) -> int:
+    raw = (cfg.get("run", {}) or {}).get("total_samples", fallback)
+    try:
+        total = int(raw)
+    except (TypeError, ValueError):
+        return fallback
+    return total if total >= 0 else fallback
+
+
+def resolve_turn_range(cfg: Dict[str, Any], fallback: int = 1) -> Tuple[int, int]:
+    default_turns = resolve_n_turns(cfg, fallback=fallback)
+    run_cfg = cfg.get("run", {}) or {}
+
+    min_raw = run_cfg.get("min_turns", 0)
+    max_raw = run_cfg.get("max_turns", 0)
+    try:
+        min_turns = int(min_raw)
+    except (TypeError, ValueError):
+        min_turns = 0
+    try:
+        max_turns = int(max_raw)
+    except (TypeError, ValueError):
+        max_turns = 0
+
+    if min_turns <= 0 and max_turns <= 0:
+        return default_turns, default_turns
+    if min_turns <= 0:
+        min_turns = max_turns
+    if max_turns <= 0:
+        max_turns = min_turns
+    if min_turns <= 0:
+        return default_turns, default_turns
+    if min_turns > max_turns:
+        raise ValueError(
+            f"Invalid turn range: run.min_turns ({min_turns}) must be <= run.max_turns ({max_turns})."
+        )
+    return min_turns, max_turns
+
+
+def resolve_turn_count_distribution(cfg: Dict[str, Any], fallback: str = "poisson") -> str:
+    run_cfg = cfg.get("run", {}) or {}
+    raw = str(run_cfg.get("turn_count_distribution", fallback) or fallback).strip().lower()
+    aliases = {"exp": "exponential", "pois": "poisson"}
+    normalized = aliases.get(raw, raw)
+    if normalized in {"uniform", "poisson", "exponential"}:
+        return normalized
+    return fallback
+
+
+def resolve_turn_count_mean(cfg: Dict[str, Any], fallback: float = 0.0) -> float:
+    run_cfg = cfg.get("run", {}) or {}
+    raw = run_cfg.get("turn_count_mean", fallback)
+    try:
+        mean = float(raw)
+    except (TypeError, ValueError):
+        return fallback
+    if mean <= 0:
+        return fallback
+    return mean
 
 
 def resolve_retrieval_default_k(cfg: Dict[str, Any], fallback: int = 4) -> int:
@@ -199,6 +343,22 @@ def resolve_judge_enabled(cfg: Dict[str, Any]) -> bool:
     return enabled
 
 
+def resolve_judge_granularity(cfg: Dict[str, Any], fallback: str = "turn") -> str:
+    judge_cfg = cfg.get("judge", {}) or {}
+    raw = str(judge_cfg.get("granularity", fallback) or fallback).strip().lower()
+    aliases = {
+        "per_turn": "turn",
+        "turns": "turn",
+        "per_conversation": "conversation",
+        "conv": "conversation",
+        "conversation_level": "conversation",
+    }
+    normalized = aliases.get(raw, raw)
+    if normalized in {"turn", "conversation"}:
+        return normalized
+    return fallback
+
+
 def resolve_judge_reasons(cfg: Dict[str, Any]) -> List[str]:
     reasons = (cfg.get("judge", {}) or {}).get("reasons", [])
     if isinstance(reasons, list):
@@ -210,12 +370,20 @@ def build_base_inputs(cfg: Dict[str, Any], project_root: Path, config_path: Path
     user_persona, assistant_persona, persona_meta = select_personas(cfg, project_root, config_path)
     user_agent_used_name = resolve_agent_used_name(cfg, "qa_generator")
     assistant_agent_used_name = resolve_agent_used_name(cfg, "kb_responder")
+    target_languages = resolve_target_languages(cfg)
+    primary_language = target_languages[0]
     return {
         "question": resolve_question(cfg),
-        "target_language": resolve_target_language(cfg),
+        "target_language": primary_language,
+        "target_languages": target_languages,
         "question_seed": resolve_question_seed(cfg),
         "run_id": resolve_run_id(cfg),
         "resume_run_id": resolve_resume_run_id(cfg),
+        "total_samples": resolve_total_samples(cfg),
+        "min_turns": (cfg.get("run", {}) or {}).get("min_turns", 0),
+        "max_turns": (cfg.get("run", {}) or {}).get("max_turns", 0),
+        "turn_count_distribution": resolve_turn_count_distribution(cfg),
+        "turn_count_mean": resolve_turn_count_mean(cfg),
         "seed_topics_path": resolve_seed_topics_path(cfg),
         "seed_topics_variant": resolve_seed_topics_variant(cfg),
         "seed_topics_probability": resolve_seed_topics_probability(cfg),
@@ -228,5 +396,6 @@ def build_base_inputs(cfg: Dict[str, Any], project_root: Path, config_path: Path
         "user_agent_used_name": user_agent_used_name,
         "assistant_agent_used_name": assistant_agent_used_name,
         "judge_enabled": resolve_judge_enabled(cfg),
+        "judge_granularity": resolve_judge_granularity(cfg),
         "judge_reasons": resolve_judge_reasons(cfg),
     }

@@ -7,7 +7,12 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "run": {
         "n_turns": 2,
         "batch_size": 1,
-        "target_language": "en",
+        "total_samples": 0,
+        "min_turns": 0,
+        "max_turns": 0,
+        "turn_count_distribution": "poisson",
+        "turn_count_mean": 0.0,
+        "target_languages": ["en"],
         "seed_question": "",
         "question_seed": "",
         "run_id": "",
@@ -82,6 +87,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "judge": {
         "enabled": True,
         "mode": "offline",
+        "granularity": "turn",
         "reasons": [
             "irrelevant",
             "incorrect",
@@ -95,6 +101,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "saving": {
         "output_dir": "outputs",
+        "output_columns": {
+            "messages": "messages",
+            "messages_with_tools": "messages_with_tools",
+            "metadata": "metadata",
+            "user_reasoning": "user_reasoning",
+            "assistant_reasoning": "assistant_reasoning",
+            "judge": "judge",
+        },
         "hf_push": {
             "enabled": False,
             "auto_push_on_run": False,
