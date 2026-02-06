@@ -1,0 +1,125 @@
+version: 1
+defaults:
+  by_target_language:
+    ar: msa
+    en: english
+    fr: france
+  final_fallback: english
+aliases:
+  english: english
+  france: france
+  msa: msa
+  morocco: morocco
+  egypt: egypt
+  gulf: gulf
+  levantine: levantine
+  saudi: saudi
+  arabic: msa
+  french: france
+  ar: msa
+  en: english
+  fr: france
+variants:
+  egypt:
+    Islamic Finance:
+    - ايه المبادئ اللي بتميز التمويل الإسلامي عن التقليدي؟
+    - ازاي بيتقسم الربح والخسارة في عقد المضاربة؟
+    - ايه البدائل الشرعية للقروض اللي فيها ربا؟
+    Zakat & Ethics:
+    - إزاي نحسب الزكاة على أصول الشركة والبضاعة؟
+    - إيه الضوابط الأخلاقية للاستثمار في التمويل الإسلامي؟
+  english:
+    Islamic Finance:
+    - What are the core principles that distinguish Islamic finance from conventional
+      finance?
+    - How does a mudarabah contract allocate profit and loss between parties?
+    - What are common Shariah-compliant alternatives to interest-based loans?
+    Banking & Contracts:
+    - What are the conditions that make a loan Shariah-compliant?
+    - How is murabaha structured and where are the common pitfalls?
+    - When is a guarantee (kafala) permitted in Islamic banking?
+    Zakat & Ethics:
+    - How is zakat calculated on business assets and inventory?
+    - What ethical constraints apply to investment portfolios in Islamic finance?
+    Risk & Guarantees:
+    - How are risk-sharing and guarantees balanced in Islamic finance?
+    - What makes a contract free from excessive uncertainty (gharar)?
+    Insurance (Takaful):
+    - How does takaful differ from conventional insurance?
+    - What are the common governance models in takaful operators?
+    Investment & Sukuk:
+    - What are the main types of sukuk and how do they differ in structure?
+    - How is asset ownership handled in sukuk issuances?
+  france:
+    Islamic Finance:
+    - Quels sont les principes clés qui distinguent la finance islamique de la finance
+      conventionnelle ?
+    - Comment un contrat de mudaraba répartit-il les profits et les pertes ?
+    - Quelles sont les alternatives conformes à la charia aux prêts à intérêt ?
+    Banking & Contracts:
+    - Quelles sont les conditions d’un prêt conforme à la charia ?
+    - Comment est structuré le murabaha et quels sont les pièges courants ?
+    - Dans quels cas la garantie (kafala) est-elle permise ?
+    Zakat & Ethics:
+    - Comment calcule-t-on la zakat sur les actifs et stocks d’une entreprise ?
+    - Quelles contraintes éthiques s’appliquent aux portefeuilles d’investissement
+      ?
+    Risk & Guarantees:
+    - Comment équilibre-t-on le partage des risques et les garanties ?
+    - Qu’est-ce qui rend un contrat exempt d’incertitude excessive (gharar) ?
+    Insurance (Takaful):
+    - En quoi le takaful diffère-t-il de l’assurance conventionnelle ?
+    - Quels sont les modèles de gouvernance courants des opérateurs takaful ?
+    Investment & Sukuk:
+    - Quels sont les principaux types de sukuk et en quoi diffèrent-ils ?
+    - Comment gère-t-on la propriété des actifs dans les émissions de sukuk ?
+  gulf:
+    Islamic Finance:
+    - وش المبادئ اللي تميّز التمويل الإسلامي عن التقليدي؟
+    - شلون يتوزع الربح والخسارة بعقد المضاربة؟
+    - وش البدائل الشرعية للقروض الربوية؟
+    Investment & Sukuk:
+    - شنو أنواع الصكوك الرئيسية وشلون تختلف بالهيكلة؟
+    - شلون تنظم ملكية الأصول في إصدارات الصكوك؟
+  levantine:
+    Islamic Finance:
+    - شو المبادئ اللي بتميّز التمويل الإسلامي عن التقليدي؟
+    - كيف بينقسم الربح والخسارة بعقد المضاربة؟
+    - شو البدائل الشرعية للقروض الربوية؟
+    Insurance (Takaful):
+    - شو الفرق بين التكافل والتأمين التقليدي؟
+    - شو نماذج الحوكمة الشائعة بشركات التكافل؟
+  morocco:
+    Islamic Finance:
+    - شنو المبادئ اللي كتميز التمويل الإسلامي على التمويل التقليدي؟
+    - كيفاش كيتقسم الربح والخسارة فالمضاربة؟
+    - شنو البدائل الشرعية للقروض بالربا؟
+    Risk & Guarantees:
+    - كيفاش كيتوازن تقاسم المخاطر مع الضمانات فتمويل إسلامي؟
+    - شنو اللي كيخلّي العقد ما فيهش غرر كبير؟
+  msa:
+    Islamic Finance:
+    - ما المبادئ الأساسية التي تميز التمويل الإسلامي عن التمويل التقليدي؟
+    - كيف يوزَّع الربح والخسارة في عقد المضاربة؟
+    - ما البدائل المتوافقة مع الشريعة للقروض الربوية؟
+    Banking & Contracts:
+    - ما الشروط التي تجعل القرض متوافقاً مع الشريعة؟
+    - كيف يُنظَّم عقد المرابحة وما أبرز الأخطاء الشائعة فيه؟
+    - متى تُجيز الشريعة الكفالة في المعاملات البنكية؟
+    Zakat & Ethics:
+    - كيف تُحسب الزكاة على أصول الشركة ومخزونها؟
+    - ما الضوابط الأخلاقية التي تحكم المحافظ الاستثمارية في التمويل الإسلامي؟
+    Risk & Guarantees:
+    - كيف يُوازن التمويل الإسلامي بين تقاسم المخاطر والضمانات؟
+    - ما الذي يجعل العقد خالياً من الغرر الفاحش؟
+    Insurance (Takaful):
+    - كيف يختلف التكافل عن التأمين التقليدي؟
+    - ما نماذج الحوكمة الشائعة لدى شركات التكافل؟
+    Investment & Sukuk:
+    - ما الأنواع الرئيسية للصكوك وكيف تختلف في الهيكلة؟
+    - كيف تُدار ملكية الأصول في إصدارات الصكوك؟
+  saudi:
+    Islamic Finance:
+    - وش الشروط اللي تخلي القرض متوافق مع الشريعة؟
+    - كيف يتم ترتيب المرابحة وأيش الأخطاء الشائعة؟
+    - متى تنجوز الكفالة في المعاملات البنكية؟

@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from typing import Any, Dict
+
+
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "run": {
+        "n_turns": 2,
+        "batch_size": 1,
+        "target_language": "en",
+        "seed_question": "",
+        "question_seed": "",
+        "run_id": "",
+        "resume_run_id": "",
+        "seed_topics_path": "data/seeds/topics.yaml",
+        "seed_topics_variant": "",
+        "seed_topics_probability": 0.35,
+        "seed_topics_enabled": True,
+    },
+    "models": {
+        "embedding_model": "Qwen/Qwen3-Embedding-4B",
+        "fallback_embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+        "use_reranker": False,
+        "reranker_model": "Qwen/Qwen3-Reranker-4B",
+        "reranker_backend": "qwen3",
+        "reranker_instruction": (
+            "Given a user question and a candidate passage from the knowledge base, "
+            "decide whether the passage contains information needed to answer the question."
+        ),
+        "reranker_max_length": 8192,
+        "qwen3_reranker_cmd": "",
+        "reranker_candidates": 12,
+        "reranker_batch_size": 16,
+    },
+    "llm": {
+        "provider": "",
+        "model": "",
+        "base_url": "",
+        "api_key": "",
+        "api_key_env": "",
+        "temperature": None,
+        "max_tokens": None,
+        "top_p": None,
+        "timeout": None,
+        "max_retries": None,
+        "extra": {},
+        "agents": {
+            "qa_generator": {},
+            "kb_responder": {},
+            "qa_judge": {},
+        },
+    },
+    "retrieval": {
+        "default_k": 4,
+        "chunk_size": 750,
+        "overlap": 150,
+        "persist_dir": "knowledge_index",
+        "rebuild_index": False,
+        "skip_if_unchanged": True,
+        "embedding_backend": "sentence_transformers",
+        "embedding_device": "auto",
+        "fallback_on_cpu": True,
+        "embedding_model_kwargs": {},
+        "embedding_tokenizer_kwargs": {},
+        "embedding_encode_kwargs": {},
+    },
+    "coverage": {
+        "doc_coverage_mode": "balanced",
+        "doc_coverage_epsilon": 0.15,
+        "doc_coverage_fraction": 0.2,
+        "question_dedup_retries": 3,
+    },
+    "tools": {
+        "web_search_enabled": False,
+        "serper_num_results": 5,
+        "serper_timeout": 30,
+    },
+    "personas": {
+        "enabled": True,
+        "path": "personas.yaml",
+    },
+    "judge": {
+        "enabled": True,
+        "mode": "offline",
+        "reasons": [
+            "irrelevant",
+            "incorrect",
+            "hallucinated",
+            "weak_grounding",
+            "vague",
+            "incomplete",
+            "unsafe",
+            "other",
+        ],
+    },
+    "saving": {
+        "output_dir": "outputs",
+        "hf_push": {
+            "enabled": False,
+            "auto_push_on_run": False,
+            "repo_id": "",
+            "repo_type": "dataset",
+            "export_dir": "hf_export",
+            "include_run_state": False,
+            "private": True,
+            "commit_message": "Update synthetic dataset export",
+            "source_file": "conversations_sharegpt_judged.jsonl",
+        },
+    },
+}

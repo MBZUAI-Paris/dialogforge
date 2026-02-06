@@ -1,0 +1,99 @@
+run:
+  n_turns: 2
+  target_language: morocco
+  seed_question: ""
+  question_seed: ""
+  run_id: ""
+  resume_run_id: ""
+  seed_topics_path: data/seeds/topics.yaml
+  seed_topics_variant: ""
+  seed_topics_probability: 0.35
+  seed_topics_enabled: false
+
+models:
+  embedding_model: google/embeddinggemma-300m
+  use_reranker: false
+  reranker_model: Qwen/Qwen3-Reranker-4B
+  reranker_backend: qwen3
+  reranker_instruction: >
+    Given a user question and a candidate passage from the knowledge base,
+    decide whether the passage contains information needed to answer the question.
+  reranker_max_length: 8192
+  qwen3_reranker_cmd: ""
+  reranker_candidates: 12
+  reranker_batch_size: 16
+
+llm:
+  provider: "openai"
+  model: "" # override with OPENAI_MODEL and will be used as default for all agents unless specified in agents section
+  base_url: "https://api.openai.com/v1"
+  api_key: ""
+  api_key_env: ""
+  temperature: null
+  max_tokens: null
+  top_p: null
+  timeout: null
+  max_retries: null
+  extra: {}
+  agents:
+    qa_generator:
+      model: gpt-5.2
+    kb_responder:
+      model: gpt-5.2
+    qa_judge: # qa_judge is ignored when judge.mode: offline in config.yaml.
+      model: gpt-5.2
+
+
+retrieval:
+  default_k: 4
+  chunk_size: 750
+  overlap: 150
+  persist_dir: knowledge_index
+  rebuild_index: false
+  skip_if_unchanged: true
+  embedding_backend: sentence_transformers
+  embedding_model_kwargs: {}
+  embedding_tokenizer_kwargs: {}
+  embedding_encode_kwargs: {}
+
+coverage:
+  doc_coverage_mode: balanced
+  doc_coverage_epsilon: 0.15
+  doc_coverage_fraction: 0.2
+  question_dedup_retries: 3
+
+tools:
+  web_search_enabled: false
+  serper_num_results: 5
+  serper_timeout: 30
+
+personas:
+  enabled: true
+  path: personas.yaml
+
+judge:
+  enabled: true
+  mode: online # online will make the judging in generation time, offline will not and will run separatly
+  reasons:
+    - irrelevant
+    - incorrect
+    - hallucinated
+    - weak_grounding
+    - vague
+    - incomplete
+    - unsafe
+    - other
+
+saving:
+  output_dir: outputs
+  hf_push:
+    enabled: false
+    auto_push_on_run: false
+    repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
+    repo_type: dataset
+    export_dir: hf_export
+    include_run_state: false
+    private: true
+    commit_message: Update synthetic dataset export
+    source_file: conversations_sharegpt.jsonl
+    # source_file: conversations_sharegpt_judged.jsonl

@@ -1,0 +1,17 @@
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Local env
+.venv/
+.env
+src/dlgforge/.env
+
+# Runtime artifacts
+outputs/
+knowledge_index/
+logs/
+
+# macOS
+.DS_Store

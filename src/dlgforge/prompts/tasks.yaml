@@ -1,0 +1,178 @@
+qa_generation_task:
+  description: >
+    Generate the NEXT user turn for multi-turn synthetic dialogue.
+    Use KB retrieval or the provided topic snippets to ground the question. Output exactly one user message.
+
+    Conversation so far (user->assistant):
+    {{public_conversation_history}}
+
+    Latest assistant answer (if any):
+    {{last_assistant_message}}
+
+    User persona for this conversation:
+    {{user_persona}}
+
+    Question mode for this turn: {{question_mode}}
+    Candidate topic snippets (JSON list with topic_id/source_path/source_descriptor/text/recent_questions):
+    {{topic_snippets}}
+    Recent user questions to avoid repeating (JSON list):
+    {{recent_user_questions}}
+
+    Seed topic (optional): {{seed_topic}}
+    Seed question (optional): {{seed_question}}
+
+    You are producing turn {{turn_index}} of {{n_turns}}. Seed/topic (if provided): {{question}}
+    user_message must be in {{target_language}} ONLY.
+    grounding_facts must stay in the same language as the selected snippet (do NOT translate).
+    If topic snippets are in a different language, keep grounding_facts in that language and
+    write the user_message in {{target_language}}.
+
+    Process:
+    1) Read conversation history.
+    2) Select ONE topic snippet to ground the question (use its topic_id in coverage_target).
+    3) Follow the question_mode policy:
+       - followup: ask a clarifying or deepening question based on the latest assistant answer.
+       - adjacent: ask about a closely related topic, not a direct follow-up.
+       - fresh: ask about a new KB topic from the snippets.
+       - off_topic: allow a gentle pivot to a new KB topic (rare).
+       - seeded: use the seed_question as the base (paraphrase if needed) while still grounding in a snippet.
+    4) Ensure the question is answerable by the selected snippet; avoid external facts.
+    5) Include at least one concrete detail from the snippet (term, percentage, condition) unless it
+       would make the question unnatural; if unsure, include a named concept from the snippet.
+       Do not mention the document itself.
+    6) Avoid repeating recent questions; do not paraphrase them.
+       Use topic_snippets[].recent_questions to avoid asking the same question for the same document.
+    7) Provide metadata for curriculum and coverage.
+
+  expected_output: >
+    VALID JSON only:
+    {
+      "user_message": "string",
+      "intent": "clarify|how_to|troubleshoot|compare|edge_case|example_request|decision_support|constraints",
+      "difficulty": "easy|medium|hard",
+      "grounding_facts": [
+        {"fact": "string (source snippet language)", "source_descriptor": "string"}
+      ],
+      "coverage_target": "string (must be the chosen topic_id from topic_snippets)",
+      "notes_for_assistant": ["string"]
+    }
+
+  agent: qa_generator
+
+kb_answer_task:
+  description: >
+    Produce the NEXT assistant turn for multi-turn synthetic dialogue.
+    You must provide a grounded final answer AND a full reasoning trace for training.
+
+    Conversation so far (user->assistant):
+    {{public_conversation_history}}
+
+    Note: The previous task output (the user JSON) is available in the task context.
+    Use topic_snippets + coverage_target to identify the source snippet language.
+
+    Assistant persona for this conversation:
+    {{assistant_persona}}
+
+    You are responding on turn {{turn_index}} of {{n_turns}}. Seed/topic (if provided): {{question}}
+    assistant_message must be in {{target_language}} ONLY.
+    retrieval_queries and evidence content should remain in the snippet's language.
+    Do not translate evidence; translate only in the final assistant_message.
+    retrieval_queries must be real search phrases, not language codes (e.g., "ar", "en", "fr", "morocco").
+    If you only used one query, output a list with just that query (no placeholders).
+
+    Rules:
+    - The assistant_message must answer the user directly, naturally, and be consistent with history.
+    - Include brief attribution phrases when citing specific facts (e.g., "According to the standard on X...").
+      Do not mention file paths or chunk IDs.
+    - Whenever possible, include at least one concrete, evidence-based detail (term, condition, numeric range)
+      and attribute it briefly; if evidence lacks such details, keep the answer concise.
+    - The reasoning_trace must be detailed step-by-step, explicitly grounded in evidence.
+    - Every non-trivial claim must be backed by (a) evidence, or (b) a clearly labeled assumption.
+    - Prefer KB; use web search only if KB coverage is insufficient.
+    - Never leak raw file names, paths, chunk IDs. Use descriptive cues only.
+    - If evidence is insufficient, say so explicitly rather than inventing facts.
+
+    Process:
+    1) Retrieve evidence with vector_db_search (k={{retrieval_default_k}}). Re-rank mentally.
+    2) If needed, web search for missing/unstable details.
+    3) Construct answer.
+    4) Construct reasoning_trace as an explicit derivation using the evidence.
+
+  expected_output: >
+    VALID JSON only:
+    {
+      "assistant_message": "string",
+      "reasoning_trace": {
+        "question": "string (copy user_message verbatim)",
+        "retrieval_queries": {
+          "vector_db_search": ["string (snippet language)", "string"],
+          "web_search": ["string (snippet language)"]
+        },
+        "evidence": [
+          {
+            "id": "E1",
+            "cue": "KB: human descriptor OR Web: human descriptor",
+            "content": "short excerpt in source language"
+          }
+        ],
+        "premises": [
+          {"id": "P1", "text": "premise statement", "evidence_refs": ["E1","E3"]}
+        ],
+        "thinking": [
+          {"text": "explicit reasoning step in natural language"}
+        ],
+        "confidence": "low|medium|high",
+        "known_limits": ["string"]
+      },
+      "did_web_search": true/false,
+    }
+
+  agent: kb_responder
+  context: [qa_generation_task]
+
+qa_judge_task:
+  description: >
+    Evaluate the quality and grounding of the current turn.
+    Inputs are the user question, the selected evidence snippets, and the assistant answer.
+    Output a score from 0 to 10 and a list of discrete reasons.
+
+    Conversation so far (user->assistant):
+    {{public_conversation_history}}
+
+    User persona:
+    {{user_persona}}
+
+    Assistant persona:
+    {{assistant_persona}}
+
+    Judge enabled: {{judge_enabled}}
+
+    User question to judge:
+    {{judge_user_message}}
+
+    Assistant answer to judge:
+    {{judge_assistant_message}}
+
+    Evidence for this turn (short excerpts or paraphrases):
+    {{judge_evidence}}
+
+    Rules:
+    - If judge_enabled is false, output a JSON object with score 0, reasons ["other"], notes "disabled",
+      question_ok false, answer_ok false.
+    - If judge_assistant_message is empty or contains "MISSING_ASSISTANT_MESSAGE", score 0 and mark answer_ok false.
+    - Score 0 means unusable; 10 means excellent and well-grounded.
+    - Provide discrete reasons from the allowed list: {{judge_reasons}}.
+    - If the question cannot be answered from the evidence, mark weak_grounding or irrelevant.
+    - If the assistant answer is inconsistent with evidence, mark incorrect or hallucinated.
+
+  expected_output: >
+    VALID JSON only:
+    {
+      "score": 0-10,
+      "reasons": ["irrelevant|incorrect|hallucinated|weak_grounding|vague|incomplete|unsafe|other"],
+      "notes": "short string",
+      "question_ok": true/false,
+      "answer_ok": true/false
+    }
+
+  agent: qa_judge
