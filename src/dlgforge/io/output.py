@@ -545,12 +545,9 @@ def _normalize_reasoning_trace(trace: Any) -> Dict[str, Any]:
         return {}
     normalized = dict(trace)
     thinking = normalized.get("thinking")
-    if thinking is None:
-        return normalized
     if isinstance(thinking, str):
         normalized["thinking"] = [{"text": thinking}]
-        return normalized
-    if isinstance(thinking, list):
+    elif isinstance(thinking, list):
         cleaned: List[Dict[str, Any]] = []
         for item in thinking:
             if isinstance(item, dict):
@@ -562,8 +559,56 @@ def _normalize_reasoning_trace(trace: Any) -> Dict[str, Any]:
             else:
                 cleaned.append({"text": "" if item is None else str(item)})
         normalized["thinking"] = cleaned
-        return normalized
-    normalized["thinking"] = [{"text": str(thinking)}]
+    elif thinking is not None:
+        normalized["thinking"] = [{"text": str(thinking)}]
+
+    premises = normalized.get("premises")
+    if isinstance(premises, list):
+        cleaned_premises: List[Dict[str, Any]] = []
+        for item in premises:
+            if isinstance(item, dict):
+                premise_id = item.get("id")
+                premise_text = item.get("text")
+                evidence_refs_raw = item.get("evidence_refs", [])
+                if isinstance(evidence_refs_raw, list):
+                    evidence_refs = [str(ref) for ref in evidence_refs_raw if str(ref).strip()]
+                elif evidence_refs_raw is None:
+                    evidence_refs = []
+                else:
+                    evidence_ref = str(evidence_refs_raw).strip()
+                    evidence_refs = [evidence_ref] if evidence_ref else []
+
+                assumption_raw = item.get("assumption")
+                if assumption_raw is None:
+                    assumption_raw = item.get("note")
+                if assumption_raw is None:
+                    assumption_raw = item.get("text_note")
+                if isinstance(assumption_raw, bool):
+                    assumption = "true" if assumption_raw else "false"
+                elif assumption_raw is None:
+                    assumption = ""
+                else:
+                    assumption = str(assumption_raw)
+
+                cleaned_premises.append(
+                    {
+                        "id": "" if premise_id is None else str(premise_id),
+                        "text": "" if premise_text is None else str(premise_text),
+                        "evidence_refs": evidence_refs,
+                        "assumption": assumption,
+                    }
+                )
+            else:
+                cleaned_premises.append(
+                    {
+                        "id": "",
+                        "text": "" if item is None else str(item),
+                        "evidence_refs": [],
+                        "assumption": "",
+                    }
+                )
+        normalized["premises"] = cleaned_premises
+
     return normalized
 
 

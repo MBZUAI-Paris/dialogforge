@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import logging
+import math
 import shutil
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-from dlgforge.config import load_config, resolve_output_dir
+from dlgforge.config import load_config, resolve_output_columns, resolve_output_dir
 from dlgforge.io import OutputPaths
 from dlgforge.utils import load_dotenv_files, setup_logging
 
@@ -26,6 +29,11 @@ class HFPushSettings:
     commit_message: str
     source_file: str
     clean_remote: bool
+    generate_stats: bool
+    stats_file: str
+    generate_plots: bool
+    plots_dir: str
+    output_columns: Dict[str, str]
 
 
 @dataclass
@@ -70,6 +78,11 @@ def run_push(config_path: str, options: HFPushOptions) -> None:
             source_file=settings.source_file,
             include_run_state=include_run_state,
             repo_id=repo_id,
+            generate_stats=settings.generate_stats,
+            stats_file=settings.stats_file,
+            generate_plots=settings.generate_plots,
+            plots_dir=settings.plots_dir,
+            output_columns=settings.output_columns,
         )
 
     if options.push:
@@ -91,11 +104,12 @@ def maybe_auto_push_after_run(cfg: Dict[str, Any], output_paths: OutputPaths) ->
         return
 
     source_dir = output_paths.output_dir
-    source_path = source_dir / settings.source_file
+    effective_source_file = _resolve_effective_source_file(source_dir, settings.source_file)
+    source_path = source_dir / effective_source_file
     if not source_path.exists() or _count_lines(source_path) == 0:
         LOGGER.warning(
             "[hf-push] Auto-push skipped: "
-            f"{settings.source_file} is missing or empty in {source_dir}."
+            f"{effective_source_file} is missing or empty in {source_dir}."
         )
         return
 
@@ -110,6 +124,11 @@ def maybe_auto_push_after_run(cfg: Dict[str, Any], output_paths: OutputPaths) ->
             source_file=settings.source_file,
             include_run_state=settings.include_run_state,
             repo_id=settings.repo_id,
+            generate_stats=settings.generate_stats,
+            stats_file=settings.stats_file,
+            generate_plots=settings.generate_plots,
+            plots_dir=settings.plots_dir,
+            output_columns=settings.output_columns,
         )
         push_to_hub(
             export_dir=export_dir,
@@ -128,6 +147,7 @@ def maybe_auto_push_after_run(cfg: Dict[str, Any], output_paths: OutputPaths) ->
 def resolve_hf_push_settings(cfg: Dict[str, Any], project_root: Path) -> HFPushSettings:
     saving_cfg = cfg.get("saving", {}) or {}
     hf_cfg = saving_cfg.get("hf_push", {}) or {}
+    output_columns = resolve_output_columns(cfg)
 
     output_dir = resolve_output_dir(cfg, project_root)
     export_dir_raw = str(hf_cfg.get("export_dir", "hf_export") or "hf_export")
@@ -152,6 +172,11 @@ def resolve_hf_push_settings(cfg: Dict[str, Any], project_root: Path) -> HFPushS
         source_file=str(hf_cfg.get("source_file", "conversations_sharegpt_judged.jsonl") or "").strip()
         or "conversations_sharegpt_judged.jsonl",
         clean_remote=bool(hf_cfg.get("clean_remote", False)),
+        generate_stats=bool(hf_cfg.get("generate_stats", False)),
+        stats_file=str(hf_cfg.get("stats_file", "dataset_stats.json") or "").strip() or "dataset_stats.json",
+        generate_plots=bool(hf_cfg.get("generate_plots", False)),
+        plots_dir=str(hf_cfg.get("plots_dir", "plots") or "").strip() or "plots",
+        output_columns=output_columns,
     )
 
 
@@ -161,6 +186,11 @@ def prepare_export(
     source_file: str,
     include_run_state: bool,
     repo_id: str | None,
+    generate_stats: bool = False,
+    stats_file: str = "dataset_stats.json",
+    generate_plots: bool = False,
+    plots_dir: str = "plots",
+    output_columns: Optional[Dict[str, str]] = None,
 ) -> Path:
     if not source_dir.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}")
@@ -169,10 +199,31 @@ def prepare_export(
         shutil.rmtree(export_dir)
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    source_path = source_dir / source_file
+    effective_source_file = _resolve_effective_source_file(source_dir, source_file)
+    source_path = source_dir / effective_source_file
     if not source_path.exists():
-        raise FileNotFoundError(f"{source_file} not found in {source_dir}")
-    shutil.copy2(source_path, export_dir / source_file)
+        raise FileNotFoundError(f"{effective_source_file} not found in {source_dir}")
+    export_source_path = export_dir / effective_source_file
+    shutil.copy2(source_path, export_source_path)
+    if export_source_path.suffix.lower() == ".jsonl":
+        if _sanitize_jsonl_for_hf(export_source_path):
+            LOGGER.info(f"[hf-push] Applied JSONL schema sanitization: {export_source_path.name}")
+
+    dataset_stats: Dict[str, Any] = {}
+    plot_files: List[str] = []
+    if (generate_stats or generate_plots) and export_source_path.suffix.lower() == ".jsonl":
+        dataset_stats = _build_dataset_stats(export_source_path, output_columns or {})
+    if generate_stats and dataset_stats:
+        stats_name = (stats_file or "dataset_stats.json").strip() or "dataset_stats.json"
+        stats_path = export_dir / stats_name
+        stats_path.write_text(json.dumps(dataset_stats, ensure_ascii=False, indent=2), encoding="utf-8")
+        LOGGER.info(f"[hf-push] Wrote dataset stats to {stats_path}")
+    if generate_plots and dataset_stats:
+        plots_folder_name = (plots_dir or "plots").strip() or "plots"
+        plots_path = export_dir / plots_folder_name
+        plots_path.mkdir(parents=True, exist_ok=True)
+        plot_files = _write_dataset_plots(plots_path, dataset_stats, plots_folder_name)
+        LOGGER.info(f"[hf-push] Wrote {len(plot_files)} dataset plot(s) to {plots_path}")
 
     if include_run_state:
         run_state = source_dir / "run_state"
@@ -182,10 +233,144 @@ def prepare_export(
     _write_dataset_card(
         export_dir=export_dir,
         source_dir=source_dir,
-        source_file=source_file,
+        source_file=effective_source_file,
         repo_id=repo_id,
+        dataset_stats=dataset_stats if dataset_stats else None,
+        stats_file=stats_file,
+        plot_files=plot_files,
     )
     return export_dir
+
+
+def _resolve_effective_source_file(source_dir: Path, source_file: str) -> str:
+    requested = source_file.strip()
+    if requested != "conversations_sharegpt.jsonl":
+        return requested
+
+    judged = source_dir / "conversations_sharegpt_judged.jsonl"
+    if judged.exists() and judged.is_file() and _count_lines(judged) > 0:
+        LOGGER.info(
+            "[hf-push] Using conversations_sharegpt_judged.jsonl for export "
+            "(configured source_file=conversations_sharegpt.jsonl)."
+        )
+        return "conversations_sharegpt_judged.jsonl"
+    return requested
+
+
+def _sanitize_jsonl_for_hf(path: Path) -> bool:
+    tmp_path = path.with_name(path.name + ".tmp")
+    changed = False
+    with path.open("r", encoding="utf-8") as src, tmp_path.open("w", encoding="utf-8") as dst:
+        for line in src:
+            stripped = line.strip()
+            if not stripped:
+                dst.write(line)
+                continue
+            try:
+                row = json.loads(stripped)
+            except Exception:
+                dst.write(line)
+                continue
+
+            sanitized = _sanitize_hf_row(row)
+            if sanitized != row:
+                changed = True
+            dst.write(json.dumps(sanitized, ensure_ascii=False, default=str) + "\n")
+
+    if changed:
+        tmp_path.replace(path)
+    else:
+        tmp_path.unlink(missing_ok=True)
+    return changed
+
+
+def _sanitize_hf_row(row: Any) -> Any:
+    if not isinstance(row, dict):
+        return row
+    assistant_reasoning = row.get("assistant_reasoning")
+    if not isinstance(assistant_reasoning, list):
+        return row
+
+    changed = False
+    normalized_rows = []
+    for reasoning_item in assistant_reasoning:
+        if not isinstance(reasoning_item, dict):
+            normalized_rows.append(reasoning_item)
+            continue
+
+        reasoning_entry = dict(reasoning_item)
+        trace = reasoning_entry.get("reasoning_trace")
+        if isinstance(trace, dict):
+            normalized_trace = _sanitize_reasoning_trace_for_hf(trace)
+            if normalized_trace != trace:
+                reasoning_entry["reasoning_trace"] = normalized_trace
+                changed = True
+        normalized_rows.append(reasoning_entry)
+
+    if not changed:
+        return row
+    out = dict(row)
+    out["assistant_reasoning"] = normalized_rows
+    return out
+
+
+def _sanitize_reasoning_trace_for_hf(trace: Dict[str, Any]) -> Dict[str, Any]:
+    premises = trace.get("premises")
+    if not isinstance(premises, list):
+        return trace
+
+    changed = False
+    cleaned_premises = []
+    for premise in premises:
+        if isinstance(premise, dict):
+            premise_id = premise.get("id")
+            premise_text = premise.get("text")
+            evidence_refs_raw = premise.get("evidence_refs", [])
+            if isinstance(evidence_refs_raw, list):
+                evidence_refs = [str(ref) for ref in evidence_refs_raw if str(ref).strip()]
+            elif evidence_refs_raw is None:
+                evidence_refs = []
+            else:
+                evidence_ref = str(evidence_refs_raw).strip()
+                evidence_refs = [evidence_ref] if evidence_ref else []
+
+            assumption_raw = premise.get("assumption")
+            if assumption_raw is None:
+                assumption_raw = premise.get("note")
+            if assumption_raw is None:
+                assumption_raw = premise.get("text_note")
+            if isinstance(assumption_raw, bool):
+                assumption = "true" if assumption_raw else "false"
+            elif assumption_raw is None:
+                assumption = ""
+            else:
+                assumption = str(assumption_raw)
+
+            canonical = {
+                "id": "" if premise_id is None else str(premise_id),
+                "text": "" if premise_text is None else str(premise_text),
+                "evidence_refs": evidence_refs,
+                "assumption": assumption,
+            }
+            if canonical != premise:
+                changed = True
+            cleaned_premises.append(canonical)
+        else:
+            cleaned_premises.append(
+                {
+                    "id": "",
+                    "text": "" if premise is None else str(premise),
+                    "evidence_refs": [],
+                    "assumption": "",
+                }
+            )
+            changed = True
+
+    if not changed:
+        return trace
+    out = dict(trace)
+    out["premises"] = cleaned_premises
+    return out
 
 
 def push_to_hub(
@@ -283,8 +468,17 @@ def _env_token() -> str:
     )
 
 
-def _write_dataset_card(export_dir: Path, source_dir: Path, source_file: str, repo_id: str | None) -> None:
-    stats = _collect_stats(source_dir, source_file)
+def _write_dataset_card(
+    export_dir: Path,
+    source_dir: Path,
+    source_file: str,
+    repo_id: str | None,
+    dataset_stats: Optional[Dict[str, Any]] = None,
+    stats_file: str = "dataset_stats.json",
+    plot_files: Optional[List[str]] = None,
+) -> None:
+    minimal_stats = _collect_minimal_stats(source_dir, source_file)
+    stats = dataset_stats if isinstance(dataset_stats, dict) and dataset_stats else minimal_stats
     dataset_name = _infer_dataset_name(repo_id)
     lines = [
         "---",
@@ -305,17 +499,413 @@ def _write_dataset_card(export_dir: Path, source_dir: Path, source_file: str, re
         "",
         "## Contents",
         f"- `{source_file}`",
-        "",
-        "## Stats",
     ]
-    lines.extend([f"- {k}: {v}" for k, v in stats.items()])
-    (export_dir / "README.md").write_text("\n".join(lines), encoding="utf-8")
+    if dataset_stats:
+        lines.append(f"- `{stats_file}`")
+        for plot in plot_files or []:
+            lines.append(f"- `{plot}`")
+    lines.extend(
+        [
+            "",
+            "## Stats",
+            f"- records: {stats.get('records', minimal_stats.get('records', 0))}",
+        ]
+    )
+
+    turn_stats = stats.get("turn_count") if isinstance(stats.get("turn_count"), dict) else {}
+    if turn_stats:
+        lines.append(f"- turn_count.avg: {turn_stats.get('avg')}")
+        lines.append(f"- turn_count.min: {turn_stats.get('min')}")
+        lines.append(f"- turn_count.max: {turn_stats.get('max')}")
+
+    judge_stats = stats.get("judge") if isinstance(stats.get("judge"), dict) else {}
+    if judge_stats:
+        lines.append(f"- judge.conversations_with_scores: {judge_stats.get('conversations_with_scores', 0)}")
+        lines.append(f"- judge.avg_score_mean: {judge_stats.get('avg_score_mean')}")
+
+    text_stats = stats.get("text") if isinstance(stats.get("text"), dict) else {}
+    if text_stats:
+        lines.append(f"- text.avg_words_per_conversation: {text_stats.get('avg_words_per_conversation')}")
+        lines.append(
+            f"- text.avg_tokens_per_conversation_estimate: {text_stats.get('avg_tokens_per_conversation_estimate')}"
+        )
+
+    if dataset_stats:
+        lines.extend(
+            [
+                "",
+                "## Full Stats JSON",
+                f"See `{stats_file}` for full distributions and aggregates.",
+            ]
+        )
+
+    if plot_files:
+        lines.extend(
+            [
+                "",
+                "## Plots",
+            ]
+        )
+        for rel_path in plot_files:
+            title = Path(rel_path).stem.replace("_", " ")
+            lines.append(f"### {title.title()}")
+            lines.append(f"![{title}]({rel_path})")
+            lines.append("")
+
+    (export_dir / "README.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
-def _collect_stats(source_dir: Path, source_file: str) -> Dict[str, int]:
+def _collect_minimal_stats(source_dir: Path, source_file: str) -> Dict[str, int]:
     return {
-        source_file.replace(".", "_") + "_records": _count_lines(source_dir / source_file),
+        "records": _count_lines(source_dir / source_file),
     }
+
+
+def _build_dataset_stats(source_path: Path, output_columns: Dict[str, str]) -> Dict[str, Any]:
+    messages_key = (output_columns.get("messages") or "messages").strip() or "messages"
+    metadata_key = (output_columns.get("metadata") or "metadata").strip() or "metadata"
+    judge_key = (output_columns.get("judge") or "judge").strip() or "judge"
+
+    records = 0
+    language_counts: Counter[str] = Counter()
+    turn_counts: List[int] = []
+    convo_word_counts: List[int] = []
+    convo_token_counts: List[int] = []
+    message_words_total = 0
+    message_tokens_total = 0
+    message_count = 0
+    judge_avg_scores: List[float] = []
+    judge_per_turn_scores: List[float] = []
+    judge_conversation_scores: List[float] = []
+    judged_conversations = 0
+
+    for row in _iter_jsonl_rows(source_path):
+        if not isinstance(row, dict):
+            continue
+        records += 1
+        metadata = row.get(metadata_key) if isinstance(row.get(metadata_key), dict) else {}
+        if not metadata and metadata_key != "metadata":
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        language = str(metadata.get("language") or "").strip()
+        if language:
+            language_counts[language] += 1
+
+        messages = row.get(messages_key)
+        if not isinstance(messages, list) and messages_key != "messages":
+            messages = row.get("messages")
+        if not isinstance(messages, list):
+            messages = []
+
+        convo_words = 0
+        convo_tokens = 0
+        for message in messages:
+            if not isinstance(message, dict):
+                continue
+            text = str(message.get("content") or "")
+            words = _count_words(text)
+            tokens = _estimate_tokens(text)
+            convo_words += words
+            convo_tokens += tokens
+            message_words_total += words
+            message_tokens_total += tokens
+            message_count += 1
+        if convo_words > 0:
+            convo_word_counts.append(convo_words)
+        if convo_tokens > 0:
+            convo_token_counts.append(convo_tokens)
+
+        judge_payload = row.get(judge_key)
+        if not isinstance(judge_payload, dict) and judge_key != "judge":
+            judge_payload = row.get("judge")
+        if not isinstance(judge_payload, dict):
+            judge_payload = {}
+
+        turn_count = _extract_turn_count(metadata, messages, judge_payload)
+        if turn_count is not None and turn_count >= 0:
+            turn_counts.append(turn_count)
+
+        has_judge = False
+        avg_score = _as_float(judge_payload.get("avg_score"))
+        conversation_payload = judge_payload.get("conversation")
+        conversation_score = (
+            _as_float(conversation_payload.get("score")) if isinstance(conversation_payload, dict) else None
+        )
+        if avg_score is None and conversation_score is not None:
+            avg_score = conversation_score
+        if avg_score is not None:
+            judge_avg_scores.append(avg_score)
+            has_judge = True
+        if conversation_score is not None:
+            judge_conversation_scores.append(conversation_score)
+            has_judge = True
+
+        per_turn = judge_payload.get("per_turn")
+        if isinstance(per_turn, list):
+            for item in per_turn:
+                if not isinstance(item, dict):
+                    continue
+                score = _as_float(item.get("score"))
+                if score is None:
+                    continue
+                judge_per_turn_scores.append(score)
+                has_judge = True
+
+        if has_judge:
+            judged_conversations += 1
+
+    return {
+        "source_file": source_path.name,
+        "records": records,
+        "languages": {k: language_counts[k] for k in sorted(language_counts)},
+        "turn_count": {
+            "min": min(turn_counts) if turn_counts else None,
+            "max": max(turn_counts) if turn_counts else None,
+            "avg": _round_or_none(_mean(turn_counts)),
+            "distribution": _count_distribution(turn_counts),
+        },
+        "judge": {
+            "conversations_with_scores": judged_conversations,
+            "avg_score_mean": _round_or_none(_mean(judge_avg_scores)),
+            "avg_score_distribution": _score_distribution(judge_avg_scores),
+            "per_turn_score_mean": _round_or_none(_mean(judge_per_turn_scores)),
+            "per_turn_score_distribution": _score_distribution(judge_per_turn_scores),
+            "conversation_score_mean": _round_or_none(_mean(judge_conversation_scores)),
+            "conversation_score_distribution": _score_distribution(judge_conversation_scores),
+        },
+        "text": {
+            "avg_words_per_conversation": _round_or_none(_mean(convo_word_counts)),
+            "avg_tokens_per_conversation_estimate": _round_or_none(_mean(convo_token_counts)),
+            "avg_words_per_message": _round_or_none(message_words_total / message_count if message_count else None),
+            "avg_tokens_per_message_estimate": _round_or_none(
+                message_tokens_total / message_count if message_count else None
+            ),
+            "word_count_distribution": _histogram_distribution(convo_word_counts, bins=12),
+            "token_estimate_distribution": _histogram_distribution(convo_token_counts, bins=12),
+        },
+    }
+
+
+def _write_dataset_plots(plots_dir: Path, dataset_stats: Dict[str, Any], relative_prefix: str) -> List[str]:
+    plot_specs: List[Tuple[str, str, Dict[str, int]]] = []
+
+    turn_distribution = (
+        ((dataset_stats.get("turn_count") or {}).get("distribution") or {})
+        if isinstance(dataset_stats.get("turn_count"), dict)
+        else {}
+    )
+    if isinstance(turn_distribution, dict) and turn_distribution:
+        plot_specs.append(("turn_count_distribution.svg", "Turn Count Distribution", turn_distribution))
+
+    judge_distribution = (
+        ((dataset_stats.get("judge") or {}).get("avg_score_distribution") or {})
+        if isinstance(dataset_stats.get("judge"), dict)
+        else {}
+    )
+    if isinstance(judge_distribution, dict) and judge_distribution:
+        plot_specs.append(("judge_avg_score_distribution.svg", "Judge Avg Score Distribution", judge_distribution))
+
+    word_distribution = (
+        ((dataset_stats.get("text") or {}).get("word_count_distribution") or {})
+        if isinstance(dataset_stats.get("text"), dict)
+        else {}
+    )
+    if isinstance(word_distribution, dict) and word_distribution:
+        plot_specs.append(("word_count_distribution.svg", "Word Count Distribution", word_distribution))
+
+    token_distribution = (
+        ((dataset_stats.get("text") or {}).get("token_estimate_distribution") or {})
+        if isinstance(dataset_stats.get("text"), dict)
+        else {}
+    )
+    if isinstance(token_distribution, dict) and token_distribution:
+        plot_specs.append(("token_estimate_distribution.svg", "Token Estimate Distribution", token_distribution))
+
+    written_files: List[str] = []
+    for file_name, title, distribution in plot_specs:
+        path = plots_dir / file_name
+        items = [(str(k), int(v)) for k, v in distribution.items() if int(v) >= 0]
+        _write_bar_chart_svg(path, title, items)
+        prefix = relative_prefix.strip().strip("/\\")
+        written_files.append(f"{prefix}/{file_name}" if prefix else file_name)
+    return written_files
+
+
+def _write_bar_chart_svg(path: Path, title: str, items: List[Tuple[str, int]]) -> None:
+    safe_title = _xml_escape(title)
+    if not items:
+        empty_svg = (
+            "<svg xmlns='http://www.w3.org/2000/svg' width='800' height='160'>"
+            f"<text x='20' y='40' font-size='20' font-family='sans-serif'>{safe_title}</text>"
+            "<text x='20' y='90' font-size='14' font-family='sans-serif'>No data</text>"
+            "</svg>"
+        )
+        path.write_text(empty_svg, encoding="utf-8")
+        return
+
+    labels = [label for label, _ in items]
+    values = [max(0, int(value)) for _, value in items]
+    max_value = max(values) if values else 1
+    left = min(360, max(140, max(len(label) for label in labels) * 7 + 24))
+    top = 64
+    row_height = 28
+    bar_area_width = 700
+    width = left + bar_area_width + 140
+    height = top + row_height * len(items) + 36
+
+    lines = [
+        f"<svg xmlns='http://www.w3.org/2000/svg' width='{width}' height='{height}'>",
+        f"<text x='16' y='34' font-size='22' font-weight='bold' font-family='sans-serif'>{safe_title}</text>",
+    ]
+    for idx, (label, value) in enumerate(zip(labels, values)):
+        y = top + idx * row_height
+        bar_width = 0 if max_value <= 0 else int((value / max_value) * bar_area_width)
+        lines.append(
+            f"<text x='16' y='{y + 18}' font-size='13' font-family='sans-serif'>{_xml_escape(label)}</text>"
+        )
+        lines.append(
+            f"<rect x='{left}' y='{y + 4}' width='{bar_width}' height='18' fill='#2f6fed' rx='3' ry='3' />"
+        )
+        lines.append(
+            f"<text x='{left + bar_width + 8}' y='{y + 18}' font-size='12' font-family='sans-serif'>{value}</text>"
+        )
+    lines.append("</svg>")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _iter_jsonl_rows(path: Path) -> Iterator[Dict[str, Any]]:
+    if not path.exists():
+        return
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                parsed = json.loads(stripped)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                yield parsed
+
+
+def _extract_turn_count(metadata: Dict[str, Any], messages: List[Any], judge_payload: Dict[str, Any]) -> Optional[int]:
+    n_turns_raw = metadata.get("n_turns")
+    if isinstance(n_turns_raw, (int, float)):
+        return int(n_turns_raw)
+    if isinstance(n_turns_raw, str):
+        try:
+            return int(float(n_turns_raw))
+        except Exception:
+            pass
+
+    per_turn = judge_payload.get("per_turn")
+    if isinstance(per_turn, list) and per_turn:
+        return len(per_turn)
+
+    user_messages = 0
+    for item in messages:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role") or "").strip().lower()
+        if role == "user":
+            user_messages += 1
+    return user_messages if user_messages > 0 else None
+
+
+def _count_words(text: str) -> int:
+    stripped = text.strip()
+    if not stripped:
+        return 0
+    return len(stripped.split())
+
+
+def _estimate_tokens(text: str) -> int:
+    stripped = text.strip()
+    if not stripped:
+        return 0
+    return max(1, int(math.ceil(len(stripped) / 4.0)))
+
+
+def _mean(values: List[float] | List[int]) -> Optional[float]:
+    if not values:
+        return None
+    return float(sum(values) / len(values))
+
+
+def _round_or_none(value: Optional[float], ndigits: int = 4) -> Optional[float]:
+    if value is None:
+        return None
+    return round(float(value), ndigits)
+
+
+def _count_distribution(values: List[int]) -> Dict[str, int]:
+    if not values:
+        return {}
+    counter = Counter(int(value) for value in values)
+    return {str(key): counter[key] for key in sorted(counter)}
+
+
+def _score_distribution(scores: List[float]) -> Dict[str, int]:
+    if not scores:
+        return {}
+    counter: Counter[int] = Counter()
+    for score in scores:
+        bucket = int(round(float(score)))
+        bucket = max(0, min(10, bucket))
+        counter[bucket] += 1
+    return {str(key): counter[key] for key in range(0, 11) if counter[key] > 0}
+
+
+def _histogram_distribution(values: List[int], bins: int = 12) -> Dict[str, int]:
+    if not values:
+        return {}
+    numeric = [int(value) for value in values]
+    minimum = min(numeric)
+    maximum = max(numeric)
+    if minimum == maximum:
+        label = f"{minimum}-{maximum}"
+        return {label: len(numeric)}
+
+    bin_count = max(1, int(bins))
+    width = max(1, int(math.ceil((maximum - minimum + 1) / bin_count)))
+    ordered_labels: List[str] = []
+    counter: Counter[str] = Counter()
+    for start in range(minimum, maximum + 1, width):
+        end = min(start + width - 1, maximum)
+        label = f"{start}-{end}"
+        ordered_labels.append(label)
+    for value in numeric:
+        start = minimum + ((value - minimum) // width) * width
+        end = min(start + width - 1, maximum)
+        label = f"{start}-{end}"
+        counter[label] += 1
+    return {label: counter[label] for label in ordered_labels if counter[label] > 0}
+
+
+def _as_float(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return float(stripped)
+        except Exception:
+            return None
+    return None
+
+
+def _xml_escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )
 
 
 def _count_lines(path: Path) -> int:
