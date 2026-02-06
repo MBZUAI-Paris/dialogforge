@@ -119,6 +119,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
             "private": True,
             "commit_message": "Update synthetic dataset export",
             "source_file": "conversations_sharegpt_judged.jsonl",
+            "generate_stats": False,
+            "stats_file": "dataset_stats.json",
+            "generate_plots": False,
+            "plots_dir": "plots",
         },
     },
 }

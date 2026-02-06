@@ -109,5 +109,9 @@ saving:
     include_run_state: false
     private: true
     commit_message: Update synthetic dataset export
-    source_file: conversations_sharegpt.jsonl
-    # source_file: conversations_sharegpt_judged.jsonl
+    source_file: conversations_sharegpt_judged.jsonl
+    # source_file: conversations_sharegpt.jsonl
+    generate_stats: true
+    stats_file: dataset_stats.json
+    generate_plots: true
+    plots_dir: data_stats/plots

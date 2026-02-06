@@ -157,6 +157,13 @@ Output layout and export:
 - `saving.output_columns.*` (renamable JSONL columns)
 - `saving.hf_push.*`
 
+Useful HF export options:
+- `saving.hf_push.source_file`: use `conversations_sharegpt_judged.jsonl` to include judge column.
+- `saving.hf_push.generate_stats`: writes dataset stats JSON during export.
+- `saving.hf_push.stats_file`: stats JSON filename (default `dataset_stats.json`).
+- `saving.hf_push.generate_plots`: writes SVG distribution plots during export.
+- `saving.hf_push.plots_dir`: plot output folder inside export dir.
+
 ## 5) Judge modes and budget control
 Two orthogonal controls:
 

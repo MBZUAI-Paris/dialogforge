@@ -98,6 +98,10 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
         "HF_PUSH_PRIVATE": (hf_push_cfg, "private", _as_bool),
         "HF_PUSH_COMMIT_MESSAGE": (hf_push_cfg, "commit_message", str),
         "HF_PUSH_SOURCE_FILE": (hf_push_cfg, "source_file", str),
+        "HF_PUSH_GENERATE_STATS": (hf_push_cfg, "generate_stats", _as_bool),
+        "HF_PUSH_STATS_FILE": (hf_push_cfg, "stats_file", str),
+        "HF_PUSH_GENERATE_PLOTS": (hf_push_cfg, "generate_plots", _as_bool),
+        "HF_PUSH_PLOTS_DIR": (hf_push_cfg, "plots_dir", str),
     }
 
     for env_name, (target, key, caster) in env_map.items():
