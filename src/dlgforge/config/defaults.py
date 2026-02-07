@@ -21,6 +21,35 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "seed_topics_variant": "",
         "seed_topics_probability": 0.35,
         "seed_topics_enabled": True,
+        "distributed": {
+            "enabled": False,
+            "executor": "ray",
+            "spawn": {
+                "coordinator": True,
+                "workers": True,
+            },
+        },
+    },
+    "ray": {
+        "address": "auto",
+        "auto_start_local": True,
+        "namespace": "dlgforge",
+        "actor": {
+            "num_cpus": 1.0,
+            "num_gpus": 0.0,
+            "coordinator_num_cpus": 1.0,
+            "replicas_qa": 1,
+            "replicas_complete": 1,
+        },
+    },
+    "store": {
+        "backend": "postgres",
+        "postgres": {
+            "dsn": "",
+            "min_pool_size": 5,
+            "max_pool_size": 30,
+            "statement_timeout_ms": 30000,
+        },
     },
     "models": {
         "embedding_model": "Qwen/Qwen3-Embedding-4B",
@@ -38,6 +67,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "reranker_batch_size": 16,
     },
     "llm": {
+        "backend": "openai",
         "provider": "",
         "model": "",
         "base_url": "",
@@ -49,6 +79,24 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "timeout": None,
         "max_retries": None,
         "extra": {},
+        "routing": {
+            "strategy": "weighted_least_inflight",
+            "endpoints": [],
+        },
+        "vllm": {
+            "model": "",
+            "served_model_name": "",
+            "replicas": 1,
+            "num_gpus_per_replica": 1,
+            "host": "0.0.0.0",
+            "advertise_host": "127.0.0.1",
+            "port_start": 18000,
+            "tensor_parallel_size": 1,
+            "gpu_memory_utilization": 0.9,
+            "max_num_seqs": 256,
+            "health_timeout_s": 180,
+            "auto_stop_on_exit": True,
+        },
         "agents": {
             "qa_generator": {},
             "kb_responder": {},

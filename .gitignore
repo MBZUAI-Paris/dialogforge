@@ -9,7 +9,7 @@ __pycache__/
 src/dlgforge/.env
 
 # Runtime artifacts
-outputs/
+outputs*/
 knowledge/
 knowledge_index/
 logs/

@@ -16,6 +16,7 @@ from dlgforge.config import (
     build_base_inputs,
     load_config,
     resolve_batch_size,
+    resolve_distributed_enabled,
     resolve_judge_enabled,
     resolve_judge_granularity,
     resolve_n_turns,
@@ -82,6 +83,13 @@ def run(config_path: str) -> None:
     load_dotenv_files(project_root)
 
     cfg, resolved_config_path, project_root = load_config(config_file)
+    if resolve_distributed_enabled(cfg) and os.getenv("DLGFORGE_RUN_BOOTSTRAPPED") != "1":
+        LOGGER.info("[distributed] Bootstrapping one-command distributed runtime")
+        from dlgforge.distributed import run_bootstrap
+
+        run_bootstrap(config_file, cfg)
+        return
+
     configure_output_columns(resolve_output_columns(cfg))
     _preflight_checks(cfg, resolved_config_path, project_root)
     _apply_runtime_env(cfg)

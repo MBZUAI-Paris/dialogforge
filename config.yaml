@@ -1,6 +1,6 @@
 run:
   n_turns: 2
-  batch_size: 64
+  batch_size: 2
   total_samples: 1024
   min_turns: 2
   max_turns: 12
@@ -15,6 +15,12 @@ run:
   seed_topics_variant: ""
   seed_topics_probability: 0.35
   seed_topics_enabled: false
+  distributed:
+    enabled: false
+    executor: ray
+    spawn:
+      coordinator: true
+      workers: true
 
 models:
   embedding_model: google/embeddinggemma-300m
@@ -30,9 +36,12 @@ models:
   reranker_batch_size: 16
 
 llm:
+  backend: vllm_attach # openai | vllm_attach | vllm_managed
   provider: "openai"
   model: "" # override with OPENAI_MODEL and will be used as default for all agents unless specified in agents section
-  base_url: "https://api.openai.com/v1"
+  # base_url: "https://api.openai.com/v1" # for openai API
+  base_url: "http://localhost:1234/v1" # for vllm_attach with LM Studio
+  # base_url: "http://localhost:8000/v1" # for vllm_managed with vLLM
   api_key: ""
   api_key_env: ""
   temperature: null
@@ -41,13 +50,50 @@ llm:
   timeout: null
   max_retries: null
   extra: {}
+  routing:
+    strategy: weighted_least_inflight
+    # required for llm.backend=vllm_attach when you already have a vllm cluster running; not needed for llm.backend=vllm_managed as the cluster will be created and managed by dlgforge, not needed when llm.backend=openai
+    endpoints: ["http://localhost:1234"] # for LM Studio
+    # endpoints: ["http://localhost:8000"] # for vLLM
+  vllm:
+    model: openai/gpt-oss-20b
+    served_model_name: gpt_oss_20b
+    replicas: 1
+    num_gpus_per_replica: 1
+    host: 0.0.0.0
+    advertise_host: 127.0.0.1
+    port_start: 18000
+    tensor_parallel_size: 1
+    gpu_memory_utilization: 0.9
+    max_num_seqs: 256
+    health_timeout_s: 180
+    auto_stop_on_exit: true
   agents:
     qa_generator:
-      model: gpt-5.2
+      model: "openai/gpt-oss-20b" # gpt-5.2
     kb_responder:
-      model: gpt-5.2
+      model: "openai/gpt-oss-20b" # gpt-5.2
     qa_judge: # qa_judge is ignored when judge.mode: offline in config.yaml.
-      model: gpt-5.2
+      model: "openai/gpt-oss-20b" #gpt-5.2
+
+ray:
+  address: auto
+  auto_start_local: true # when true and ray.address=auto finds no cluster, dlgforge starts a local Ray runtime
+  namespace: dlgforge
+  actor:
+    num_cpus: 1.0
+    num_gpus: 0.0
+    coordinator_num_cpus: 1.0
+    replicas_qa: 2
+    replicas_complete: 2
+
+store:
+  backend: postgres
+  postgres:
+    dsn: ""
+    min_pool_size: 5
+    max_pool_size: 30
+    statement_timeout_ms: 30000
 
 
 retrieval:
@@ -92,7 +138,7 @@ judge:
     - other
 
 saving:
-  output_dir: outputs
+  output_dir: outputs_local
   output_columns:
     messages: messages
     messages_with_tools: messages_with_tools
@@ -103,7 +149,8 @@ saving:
   hf_push:
     enabled: true
     auto_push_on_run: true
-    repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
+    # repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
+    repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-local
     repo_type: dataset
     export_dir: hf_export
     include_run_state: false

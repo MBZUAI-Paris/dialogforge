@@ -8,8 +8,9 @@ Lightweight synthetic multi-turn dialogue generation with an OpenAI-compatible A
 - optional online judging during generation
 - resumable run state
 - export-ready JSONL artifacts
+- optional one-command distributed bootstrap (Ray + Postgres + vLLM backends)
 
-No CrewAI, LiteLLM, FastAPI, Ray, multiprocessing, or vLLM.
+No CrewAI, LiteLLM, FastAPI, or multiprocessing.
 
 ## Table of contents
 - [1) What this project does](#1-what-this-project-does)
@@ -44,6 +45,11 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
+If you want managed local/cluster vLLM autostart mode (`llm.backend: vllm_managed`, Linux GPU nodes):
+```bash
+python -m pip install -e ".[vllm]"
+```
+
 ### 2.2 Configure env vars
 ```bash
 cp .env.example .env
@@ -74,6 +80,137 @@ python -m dlgforge run config.yaml
 - `outputs/turns.jsonl`
 - `outputs/run_state/*.json`
 - `logs/run.log`, `logs/llm.log`, `logs/judge.log`
+
+### 2.5 Recommended mode by setup
+- macOS laptop + LM Studio: `run.distributed.enabled: false` + `llm.backend: openai` + `llm.base_url: http://127.0.0.1:1234/v1`
+- macOS laptop + distributed orchestrator: `run.distributed.enabled: true` + `llm.backend: vllm_attach` + Postgres DSN
+- Linux GPU nodes and self-managed cluster: `run.distributed.enabled: true` + `llm.backend: vllm_managed`
+
+### 2.6 Run modes (copy-paste)
+#### A) LM Studio local, non-distributed (recommended on macOS)
+```yaml
+run:
+  distributed:
+    enabled: false
+llm:
+  backend: openai
+  base_url: http://127.0.0.1:1234/v1
+  api_key: EMPTY
+  agents:
+    qa_generator:
+      model: openai/gpt-oss-20b
+    kb_responder:
+      model: openai/gpt-oss-20b
+    qa_judge:
+      model: openai/gpt-oss-20b
+```
+```bash
+dlgforge run config.yaml
+```
+
+#### B) OpenAI, non-distributed (no Ray/Postgres required)
+```yaml
+run:
+  distributed:
+    enabled: false
+llm:
+  backend: openai
+```
+```bash
+dlgforge run config.yaml
+```
+
+#### C) OpenAI, one-command distributed (Ray + Postgres)
+```yaml
+run:
+  distributed:
+    enabled: true
+ray:
+  address: auto
+  auto_start_local: true
+llm:
+  backend: openai
+```
+```bash
+export DLGFORGE_POSTGRES_DSN='postgresql://USER:PASS@HOST:5432/DB'
+dlgforge run config.yaml
+```
+
+If no Ray cluster is running, `ray.auto_start_local: true` lets `dlgforge` start a local Ray runtime automatically.
+
+#### D) vLLM attach (you already started vLLM endpoints)
+```yaml
+run:
+  distributed:
+    enabled: true
+llm:
+  backend: vllm_attach
+  routing:
+    endpoints:
+      - name: gpu-node-1
+        base_url: http://10.0.0.11:8000/v1
+        api_key: EMPTY
+```
+```bash
+export DLGFORGE_POSTGRES_DSN='postgresql://USER:PASS@HOST:5432/DB'
+dlgforge run config.yaml
+```
+
+#### E) vLLM managed autostart (dlgforge starts/stops vLLM)
+```yaml
+run:
+  distributed:
+    enabled: true
+llm:
+  backend: vllm_managed
+  vllm:
+    model: Qwen/Qwen2.5-7B-Instruct
+    served_model_name: qwen
+```
+```bash
+python -m pip install -e ".[vllm]"
+export DLGFORGE_POSTGRES_DSN='postgresql://USER:PASS@HOST:5432/DB'
+dlgforge run config.yaml
+```
+
+Notes:
+- managed mode is Linux-oriented (`vllm` extra is Linux-only in this project).
+- on macOS, use LM Studio local mode (`A`) or distributed attach mode (`D`).
+- if using managed mode, align your `llm.agents.*.model` values with `llm.vllm.served_model_name`.
+
+### 2.7 Start Postgres quickly (required for distributed modes)
+Distributed modes (`C`, `D`, `E`) require Postgres.
+
+Start a local Postgres with Docker:
+```bash
+docker run -d \
+  --name dlgforge-postgres \
+  -e POSTGRES_USER=dlgforge \
+  -e POSTGRES_PASSWORD=dlgforge \
+  -e POSTGRES_DB=dlgforge \
+  -p 5432:5432 \
+  postgres:16
+```
+
+Set DSN:
+```bash
+export DLGFORGE_POSTGRES_DSN='postgresql://dlgforge:dlgforge@127.0.0.1:5432/dlgforge'
+```
+
+Health check:
+```bash
+docker exec dlgforge-postgres pg_isready -U dlgforge -d dlgforge
+```
+
+Reuse existing container:
+```bash
+docker start dlgforge-postgres
+```
+
+Stop when done:
+```bash
+docker stop dlgforge-postgres
+```
 
 ## 3) How generation works
 At runtime:
@@ -114,6 +251,9 @@ OpenAI-compatible settings:
 - `llm.base_url`
 - `llm.api_key` / env
 - per-agent overrides under `llm.agents`
+- `llm.backend`: `openai`, `vllm_attach`, or `vllm_managed`
+- `llm.routing.*`: multi-endpoint routing (used by attach/managed vLLM modes)
+- `llm.vllm.*`: managed vLLM replica settings when `llm.backend: vllm_managed`
 
 Agents:
 - `qa_generator`
@@ -156,6 +296,90 @@ Output layout and export:
 - `saving.output_dir`
 - `saving.output_columns.*` (renamable JSONL columns)
 - `saving.hf_push.*`
+
+### 4.8 Distributed one-command runtime
+Enable one-command distributed launch from the same CLI entrypoint:
+```yaml
+run:
+  distributed:
+    enabled: true
+    executor: ray
+    spawn:
+      coordinator: true
+      workers: true
+
+ray:
+  address: "auto"
+  auto_start_local: true
+  namespace: "dlgforge"
+
+store:
+  backend: postgres
+  postgres:
+    dsn: "${DLGFORGE_POSTGRES_DSN}"
+
+llm:
+  backend: vllm_attach  # openai | vllm_attach | vllm_managed
+  routing:
+    strategy: weighted_least_inflight
+    endpoints:
+      - name: gpu-node-1
+        base_url: http://10.0.0.11:8000/v1
+        api_key: EMPTY
+      - name: gpu-node-2
+        base_url: http://10.0.0.12:8000/v1
+        api_key: EMPTY
+```
+
+Behavior:
+- `dlgforge run config.yaml` bootstraps coordinator + workers automatically when `run.distributed.enabled: true`
+- Ray init tries `ray.address` first; when `ray.address: auto` has no running cluster and `ray.auto_start_local: true`, it falls back to a local Ray runtime
+- `llm.backend: openai` uses hosted API (no vLLM provisioning)
+- `llm.backend: vllm_attach` validates configured vLLM endpoints before run
+- `llm.backend: vllm_managed` starts/stops vLLM servers on Ray GPU actors
+- current execution path runs generation from the coordinator actor while worker replicas are provisioned for lifecycle orchestration hooks
+
+Bootstrap sequence:
+```mermaid
+flowchart TD
+  A["dlgforge run config.yaml"] --> B["RunBootstrap"]
+  B --> C["Initialize Ray"]
+  C --> D["Validate Postgres DSN and ping"]
+  D --> E{"llm.backend"}
+  E -->|openai| F["No vLLM provisioning"]
+  E -->|vllm_attach| G["Validate configured /v1/models endpoints"]
+  E -->|vllm_managed| H["Spawn vLLM server actors and wait healthy"]
+  F --> I["Spawn coordinator actor"]
+  G --> I
+  H --> I
+  B --> J["Spawn worker actors"]
+  I --> K["Coordinator executes generation run"]
+```
+
+Current dispatch/execution model:
+```mermaid
+flowchart LR
+  U["User: dlgforge run"] --> B["RunBootstrap"]
+  B --> C["Coordinator actor"]
+  B --> W["Worker actors (provisioned)"]
+  C --> P["Existing generation loop (turn logic)"]
+  P --> R["Endpoint routing"]
+  R --> O["OpenAI API"]
+  R --> VA["Attached vLLM endpoints"]
+  R --> VM["Managed vLLM endpoints"]
+```
+
+Mode matrix:
+```mermaid
+flowchart TD
+  S{"run.distributed.enabled"}
+  S -->|false| L["Local mode: openai only, no Ray/Postgres requirement"]
+  S -->|true| D["Distributed mode: Ray plus Postgres required"]
+  D --> B{"llm.backend"}
+  B -->|openai| BO["Hosted OpenAI path"]
+  B -->|vllm_attach| BA["Use user-provided vLLM endpoints"]
+  B -->|vllm_managed| BM["Auto-start vLLM on Ray GPU workers (vllm extra required)"]
+```
 
 Useful HF export options:
 - `saving.hf_push.source_file`: use `conversations_sharegpt_judged.jsonl` to include judge column.

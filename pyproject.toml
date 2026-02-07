@@ -6,6 +6,8 @@ authors = [{ name = "Abdelaziz Bounhar" }]
 requires-python = ">=3.10,<3.14"
 dependencies = [
   "openai>=1.40.0",
+  "asyncpg>=0.30.0",
+  "ray>=2.40.0",
   "huggingface-hub>=0.24.0",
   "PyYAML>=6.0.1",
   "chromadb>=0.5.0",
@@ -13,6 +15,11 @@ dependencies = [
   "sentence-transformers>=2.7.0",
   "transformers>=4.51.0",
   "pypdf>=4.3.1"
+]
+
+[project.optional-dependencies]
+vllm = [
+  "vllm>=0.6.6.post1; platform_system == 'Linux'",
 ]
 
 [project.scripts]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, List
 
@@ -7,6 +8,7 @@ from typing import Any, Dict, List
 def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
     llm_cfg = cfg.get("llm", {}) or {}
     merged = {
+        "backend": llm_cfg.get("backend"),
         "provider": llm_cfg.get("provider"),
         "model": llm_cfg.get("model"),
         "base_url": llm_cfg.get("base_url"),
@@ -18,6 +20,7 @@ def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
         "timeout": llm_cfg.get("timeout"),
         "max_retries": llm_cfg.get("max_retries"),
         "extra": llm_cfg.get("extra") or {},
+        "routing": llm_cfg.get("routing") or {},
     }
 
     per_agent = (llm_cfg.get("agents", {}) or {}).get(agent_key, {}) or {}
@@ -25,6 +28,7 @@ def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
 
     prefix = f"LLM_{agent_key.upper()}_"
     env_keys = [
+        "BACKEND",
         "PROVIDER",
         "MODEL",
         "BASE_URL",
@@ -43,6 +47,22 @@ def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
         if value in {None, ""}:
             continue
         merged[key.lower()] = value
+
+    routing = merged.get("routing")
+    if not isinstance(routing, dict):
+        routing = {}
+    routing_strategy = os.getenv(prefix + "ROUTING_STRATEGY") or os.getenv("LLM_ROUTING_STRATEGY")
+    if routing_strategy:
+        routing["strategy"] = routing_strategy
+    endpoints_raw = os.getenv(prefix + "ROUTING_ENDPOINTS_JSON") or os.getenv("LLM_ROUTING_ENDPOINTS_JSON")
+    if endpoints_raw:
+        try:
+            endpoints = json.loads(endpoints_raw)
+            if isinstance(endpoints, list):
+                routing["endpoints"] = endpoints
+        except json.JSONDecodeError:
+            pass
+    merged["routing"] = routing
 
     merged["temperature"] = _as_optional_float(merged.get("temperature"))
     merged["max_tokens"] = _as_optional_int(merged.get("max_tokens"))

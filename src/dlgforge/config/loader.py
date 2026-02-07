@@ -47,6 +47,12 @@ def load_config(config_path: str | Path) -> Tuple[Dict[str, Any], Path, Path]:
 
 def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
     run_cfg = cfg.setdefault("run", {})
+    distributed_cfg = run_cfg.setdefault("distributed", {})
+    distributed_spawn_cfg = distributed_cfg.setdefault("spawn", {})
+    ray_cfg = cfg.setdefault("ray", {})
+    ray_actor_cfg = ray_cfg.setdefault("actor", {})
+    store_cfg = cfg.setdefault("store", {})
+    postgres_cfg = store_cfg.setdefault("postgres", {})
     models_cfg = cfg.setdefault("models", {})
     retrieval_cfg = cfg.setdefault("retrieval", {})
     coverage_cfg = cfg.setdefault("coverage", {})
@@ -54,6 +60,8 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
     judge_cfg = cfg.setdefault("judge", {})
     saving_cfg = cfg.setdefault("saving", {})
     hf_push_cfg = saving_cfg.setdefault("hf_push", {})
+    llm_cfg = cfg.setdefault("llm", {})
+    llm_routing_cfg = llm_cfg.setdefault("routing", {})
 
     env_map = {
         "N_TURNS": (run_cfg, "n_turns", int),
@@ -71,6 +79,20 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
         "SEED_TOPICS_VARIANT": (run_cfg, "seed_topics_variant", str),
         "SEED_TOPICS_PROBABILITY": (run_cfg, "seed_topics_probability", float),
         "SEED_TOPICS_ENABLED": (run_cfg, "seed_topics_enabled", _as_bool),
+        "DISTRIBUTED_ENABLED": (distributed_cfg, "enabled", _as_bool),
+        "DISTRIBUTED_EXECUTOR": (distributed_cfg, "executor", str),
+        "DISTRIBUTED_SPAWN_COORDINATOR": (distributed_spawn_cfg, "coordinator", _as_bool),
+        "DISTRIBUTED_SPAWN_WORKERS": (distributed_spawn_cfg, "workers", _as_bool),
+        "RAY_ADDRESS": (ray_cfg, "address", str),
+        "RAY_AUTO_START_LOCAL": (ray_cfg, "auto_start_local", _as_bool),
+        "RAY_NAMESPACE": (ray_cfg, "namespace", str),
+        "RAY_ACTOR_NUM_CPUS": (ray_actor_cfg, "num_cpus", float),
+        "RAY_ACTOR_NUM_GPUS": (ray_actor_cfg, "num_gpus", float),
+        "RAY_COORDINATOR_NUM_CPUS": (ray_actor_cfg, "coordinator_num_cpus", float),
+        "RAY_REPLICAS_QA": (ray_actor_cfg, "replicas_qa", int),
+        "RAY_REPLICAS_COMPLETE": (ray_actor_cfg, "replicas_complete", int),
+        "STORE_BACKEND": (store_cfg, "backend", str),
+        "POSTGRES_DSN": (postgres_cfg, "dsn", str),
         "KB_CHUNK_SIZE": (retrieval_cfg, "chunk_size", int),
         "KB_CHUNK_OVERLAP": (retrieval_cfg, "overlap", int),
         "KB_DEFAULT_K": (retrieval_cfg, "default_k", int),
@@ -102,6 +124,8 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
         "HF_PUSH_STATS_FILE": (hf_push_cfg, "stats_file", str),
         "HF_PUSH_GENERATE_PLOTS": (hf_push_cfg, "generate_plots", _as_bool),
         "HF_PUSH_PLOTS_DIR": (hf_push_cfg, "plots_dir", str),
+        "LLM_BACKEND": (llm_cfg, "backend", str),
+        "LLM_ROUTING_STRATEGY": (llm_routing_cfg, "strategy", str),
     }
 
     for env_name, (target, key, caster) in env_map.items():
@@ -128,6 +152,10 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
     encode_kwargs_json = _parse_json_env("KB_EMBEDDING_ENCODE_KWARGS_JSON")
     if encode_kwargs_json is not None:
         retrieval_cfg["embedding_encode_kwargs"] = encode_kwargs_json
+
+    routing_endpoints_json = _parse_json_list_env("LLM_ROUTING_ENDPOINTS_JSON")
+    if routing_endpoints_json is not None:
+        llm_routing_cfg["endpoints"] = routing_endpoints_json
 
     target_languages = _parse_list_env("TARGET_LANGUAGES")
     if target_languages is not None:
@@ -160,6 +188,19 @@ def _parse_list_env(env_name: str) -> List[str] | None:
     if not text:
         return []
     return [part.strip() for part in text.split(",") if part.strip()]
+
+
+def _parse_json_list_env(env_name: str) -> List[Any] | None:
+    raw = os.getenv(env_name)
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as err:
+        raise ValueError(f"{env_name} must be valid JSON list. Error: {err.msg}") from err
+    if not isinstance(parsed, list):
+        raise ValueError(f"{env_name} must be a JSON list.")
+    return parsed
 
 
 def _as_bool(raw: str) -> bool:
@@ -253,6 +294,11 @@ def resolve_total_samples(cfg: Dict[str, Any], fallback: int = 0) -> int:
     except (TypeError, ValueError):
         return fallback
     return total if total >= 0 else fallback
+
+
+def resolve_distributed_enabled(cfg: Dict[str, Any]) -> bool:
+    distributed_cfg = ((cfg.get("run", {}) or {}).get("distributed", {}) or {})
+    return bool(distributed_cfg.get("enabled", False))
 
 
 def resolve_turn_range(cfg: Dict[str, Any], fallback: int = 1) -> Tuple[int, int]:
