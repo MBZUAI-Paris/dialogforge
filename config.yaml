@@ -138,7 +138,8 @@ judge:
     - other
 
 saving:
-  output_dir: outputs_local
+  output_dir: outputs
+  # output_dir: outputs_local
   output_columns:
     messages: messages
     messages_with_tools: messages_with_tools
@@ -149,8 +150,8 @@ saving:
   hf_push:
     enabled: true
     auto_push_on_run: true
-    # repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
-    repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-local
+    repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-Multilingual
+    # repo_id: MBZUAI-Paris/Synthetic-QA-Reasoning-local
     repo_type: dataset
     export_dir: hf_export
     include_run_state: false

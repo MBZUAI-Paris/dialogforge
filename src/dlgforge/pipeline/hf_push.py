@@ -482,6 +482,11 @@ def _write_dataset_card(
     dataset_name = _infer_dataset_name(repo_id)
     lines = [
         "---",
+        "configs:",
+        "  - config_name: default",
+        "    data_files:",
+        "      - split: train",
+        f"        path: {source_file}",
         "language:",
         "  - en",
         "  - ar",
