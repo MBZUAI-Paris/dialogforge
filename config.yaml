@@ -36,11 +36,12 @@ models:
   reranker_batch_size: 16
 
 llm:
-  backend: vllm_attach # openai | vllm_attach | vllm_managed
-  provider: "openai"
+  backend: openai # openai | vllm_attach | vllm_managed
+  provider: "" # for mixed LLM providers, you can specify provider per agent in llm.agents section; for single provider use case, you can set it here and it will be used as default for all agents unless overridden in llm.agents section
   model: "" # override with OPENAI_MODEL and will be used as default for all agents unless specified in agents section
+  # refer to https://docs.litellm.ai/docs/providers for base_url and api_key formats for different providers
   # base_url: "https://api.openai.com/v1" # for openai API
-  base_url: "http://localhost:1234/v1" # for vllm_attach with LM Studio
+  # base_url: "http://localhost:1234/v1" # for vllm_attach with LM Studio
   # base_url: "http://localhost:8000/v1" # for vllm_managed with vLLM
   api_key: ""
   api_key_env: ""
@@ -53,7 +54,7 @@ llm:
   routing:
     strategy: weighted_least_inflight
     # required for llm.backend=vllm_attach when you already have a vllm cluster running; not needed for llm.backend=vllm_managed as the cluster will be created and managed by dlgforge, not needed when llm.backend=openai
-    endpoints: ["http://localhost:1234"] # for LM Studio
+    # endpoints: ["http://localhost:1234"] # for LM Studio
     # endpoints: ["http://localhost:8000"] # for vLLM
   vllm:
     model: openai/gpt-oss-20b
@@ -69,12 +70,17 @@ llm:
     health_timeout_s: 180
     auto_stop_on_exit: true
   agents:
+    # refer to https://docs.litellm.ai/docs/providers for base_url and api_key formats for different providers
     qa_generator:
-      model: "openai/gpt-oss-20b" # gpt-5.2
+      provider: openai
+      model: gpt-5.2 # gpt-5.2 , "openai/gpt-oss-20b"
+      base_url: https://api.openai.com/v1
     kb_responder:
-      model: "openai/gpt-oss-20b" # gpt-5.2
+      provider: gemini
+      model: gemini/gemini-3-flash-preview # gpt-5.2 , "openai/gpt-oss-20b"
     qa_judge: # qa_judge is ignored when judge.mode: offline in config.yaml.
-      model: "openai/gpt-oss-20b" #gpt-5.2
+      provider: gemini
+      model: gemini/gemini-3-flash-preview #gpt-5.2 , "openai/gpt-oss-20b"
 
 ray:
   address: auto
@@ -157,8 +163,8 @@ saving:
     include_run_state: false
     private: true
     commit_message: Update synthetic dataset export
-    source_file: conversations_sharegpt_judged.jsonl
-    # source_file: conversations_sharegpt.jsonl
+    # source_file: conversations_sharegpt_judged.jsonl
+    source_file: conversations_sharegpt.jsonl
     generate_stats: true
     stats_file: dataset_stats.json
     generate_plots: true

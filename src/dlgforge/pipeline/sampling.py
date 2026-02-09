@@ -1,3 +1,7 @@
+"""Question sampling, coverage memory, and seed-topic helpers.
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -47,7 +51,6 @@ _STRUCTURED_SEED_META_KEYS = {
     "default_variant_by_target_language",
 }
 
-
 def build_question_inputs(
     base_inputs: Dict[str, Any],
     turn_index: int,
@@ -63,6 +66,40 @@ def build_question_inputs(
     used_seed_hashes: set[str],
     seed_topic_usage: Dict[str, int],
 ) -> Dict[str, Any]:
+    """Build question inputs.
+    
+    Args:
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        turn_index (int): Numeric control value for processing behavior.
+        n_turns (int): Numeric control value for processing behavior.
+        public_history (List[Dict[str, Any]]): Conversation or message data used during processing.
+        used_topic_ids (set): set value used by this operation.
+        recent_ledger_questions (List[str]): List[str] value used by this operation.
+        doc_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_chunk_counts (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_recent_questions (Dict[str, List[str]]): Dict[str, List[str]] value used by this operation.
+        avoid_sources (set[str]): set[str] value used by this operation.
+        forced_mode (str): str value used by this operation.
+        used_seed_hashes (set[str]): set[str] value used by this operation.
+        seed_topic_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+    
+    Returns:
+        Dict[str, Any]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_question_inputs
+        >>> build_question_inputs(...)
+    
+    """
     seed_query = (base_inputs.get("question") or "").strip()
     last_assistant_message = ""
     recent_questions: List[str] = []
@@ -118,12 +155,33 @@ def build_question_inputs(
         "seed_question": seed_question,
     }
 
-
 def build_rng(base_inputs: Dict[str, Any], turn_index: int) -> random.Random:
+    """Build rng.
+    
+    Args:
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        turn_index (int): Numeric control value for processing behavior.
+    
+    Returns:
+        random.Random: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_rng
+        >>> build_rng(...)
+    
+    """
     seed_value = base_inputs.get("question_seed") or ""
     seed = f"{seed_value}-{turn_index}" if seed_value else f"{datetime.utcnow().isoformat()}-{turn_index}"
     return random.Random(seed)
-
 
 def select_question_mode(
     turn_index: int,
@@ -132,6 +190,32 @@ def select_question_mode(
     rng: random.Random,
     seed_query: str,
 ) -> str:
+    """Select question mode.
+    
+    Args:
+        turn_index (int): Numeric control value for processing behavior.
+        n_turns (int): Numeric control value for processing behavior.
+        has_assistant (bool): bool value used by this operation.
+        rng (random.Random): random.Random value used by this operation.
+        seed_query (str): str value used by this operation.
+    
+    Returns:
+        str: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import select_question_mode
+        >>> select_question_mode(...)
+    
+    """
     _ = n_turns
     if turn_index == 1 and seed_query:
         return "seeded"
@@ -161,7 +245,6 @@ def select_question_mode(
             return mode
     return "fresh"
 
-
 def sample_topic_snippets(
     mode: str,
     seed_query: str,
@@ -173,6 +256,36 @@ def sample_topic_snippets(
     avoid_sources: set[str],
     rng: random.Random,
 ) -> List[Dict[str, str]]:
+    """Sample topic snippets.
+    
+    Args:
+        mode (str): str value used by this operation.
+        seed_query (str): str value used by this operation.
+        last_assistant_message (str): str value used by this operation.
+        used_topic_ids (set): set value used by this operation.
+        doc_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_chunk_counts (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_recent_questions (Dict[str, List[str]]): Dict[str, List[str]] value used by this operation.
+        avoid_sources (set[str]): set[str] value used by this operation.
+        rng (random.Random): random.Random value used by this operation.
+    
+    Returns:
+        List[Dict[str, str]]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import sample_topic_snippets
+        >>> sample_topic_snippets(...)
+    
+    """
     store = get_vector_store()
     snippets: List[Dict[str, str]] = []
 
@@ -221,8 +334,29 @@ def sample_topic_snippets(
 
     return snippets
 
-
 def format_source_descriptor(metadata: Dict[str, Any]) -> str:
+    """Format source descriptor.
+    
+    Args:
+        metadata (Dict[str, Any]): Mapping payload for this operation.
+    
+    Returns:
+        str: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import format_source_descriptor
+        >>> format_source_descriptor(...)
+    
+    """
     source = metadata.get("source", "unknown")
     chunk_index = metadata.get("chunk_index")
     base = source.split("/")[-1]
@@ -230,8 +364,29 @@ def format_source_descriptor(metadata: Dict[str, Any]) -> str:
         return base
     return f"{base}#chunk{chunk_index}"
 
-
 def build_doc_usage(ledger_entries: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Build doc usage.
+    
+    Args:
+        ledger_entries (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        Dict[str, int]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_doc_usage
+        >>> build_doc_usage(...)
+    
+    """
     usage: Dict[str, int] = {}
     for entry in ledger_entries:
         source = entry.get("source_path") or entry.get("source")
@@ -240,12 +395,52 @@ def build_doc_usage(ledger_entries: List[Dict[str, Any]]) -> Dict[str, int]:
         usage[source] = usage.get(source, 0) + 1
     return usage
 
-
 def build_doc_chunk_counts() -> Dict[str, int]:
+    """Build doc chunk counts.
+    
+    
+    Returns:
+        Dict[str, int]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_doc_chunk_counts
+        >>> build_doc_chunk_counts(...)
+    
+    """
     return get_vector_store().source_chunk_counts()
 
-
 def build_doc_question_hashes(ledger_entries: List[Dict[str, Any]]) -> Dict[str, set[str]]:
+    """Build doc question hashes.
+    
+    Args:
+        ledger_entries (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        Dict[str, set[str]]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_doc_question_hashes
+        >>> build_doc_question_hashes(...)
+    
+    """
     hashes: Dict[str, set[str]] = {}
     for entry in ledger_entries:
         source = entry.get("source_path") or entry.get("source")
@@ -255,11 +450,33 @@ def build_doc_question_hashes(ledger_entries: List[Dict[str, Any]]) -> Dict[str,
         hashes.setdefault(source, set()).add(question_hash)
     return hashes
 
-
 def build_doc_recent_questions(
     ledger_entries: List[Dict[str, Any]],
     max_per_doc: int = 8,
 ) -> Dict[str, List[str]]:
+    """Build doc recent questions.
+    
+    Args:
+        ledger_entries (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+        max_per_doc (int): int value used by this operation.
+    
+    Returns:
+        Dict[str, List[str]]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_doc_recent_questions
+        >>> build_doc_recent_questions(...)
+    
+    """
     history: Dict[str, List[str]] = {}
     for entry in ledger_entries:
         source = entry.get("source_path") or entry.get("source")
@@ -274,13 +491,37 @@ def build_doc_recent_questions(
 
     return history
 
-
 def select_doc_pool(
     doc_usage: Dict[str, int],
     doc_chunk_counts: Dict[str, int],
     all_sources: List[str],
     rng: random.Random,
 ) -> set[str]:
+    """Select doc pool.
+    
+    Args:
+        doc_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_chunk_counts (Dict[str, int]): Dict[str, int] value used by this operation.
+        all_sources (List[str]): List[str] value used by this operation.
+        rng (random.Random): random.Random value used by this operation.
+    
+    Returns:
+        set[str]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import select_doc_pool
+        >>> select_doc_pool(...)
+    
+    """
     mode = str((os.getenv("DOC_COVERAGE_MODE") or "balanced")).strip().lower()
     if mode == "off" or not all_sources:
         return set(all_sources)
@@ -299,18 +540,64 @@ def select_doc_pool(
     k = max(1, int(len(sorted_sources) * fraction))
     return set(sorted_sources[:k])
 
-
 def coverage_ratio(source: str, doc_usage: Dict[str, int], doc_chunk_counts: Dict[str, int]) -> float:
+    """Coverage ratio.
+    
+    Args:
+        source (str): Filesystem path used by this operation.
+        doc_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+        doc_chunk_counts (Dict[str, int]): Dict[str, int] value used by this operation.
+    
+    Returns:
+        float: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import coverage_ratio
+        >>> coverage_ratio(...)
+    
+    """
     usage = doc_usage.get(source, 0)
     chunks = doc_chunk_counts.get(source, 1)
     return usage / max(chunks, 1)
-
 
 def filter_results_by_sources(
     results: List[tuple],
     preferred_sources: set[str],
     allow_fallback: bool,
 ) -> List[tuple]:
+    """Filter results by sources.
+    
+    Args:
+        results (List[tuple]): List[tuple] value used by this operation.
+        preferred_sources (set[str]): set[str] value used by this operation.
+        allow_fallback (bool): bool value used by this operation.
+    
+    Returns:
+        List[tuple]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import filter_results_by_sources
+        >>> filter_results_by_sources(...)
+    
+    """
     if not preferred_sources:
         return results
     filtered = [item for item in results if item[1].get("source") in preferred_sources]
@@ -318,13 +605,34 @@ def filter_results_by_sources(
         return filtered
     return results if allow_fallback else []
 
-
 def clamp_float(raw: str, default: float) -> float:
+    """Clamp float.
+    
+    Args:
+        raw (str): str value used by this operation.
+        default (float): float value used by this operation.
+    
+    Returns:
+        float: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import clamp_float
+        >>> clamp_float(...)
+    
+    """
     try:
         return float(raw)
     except (TypeError, ValueError):
         return default
-
 
 def update_coverage_ledger(
     paths: OutputPaths,
@@ -333,6 +641,32 @@ def update_coverage_ledger(
     used_topic_ids: set,
     used_question_hashes: set,
 ) -> None:
+    """Update coverage ledger.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        qa_output (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        question_inputs (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        used_topic_ids (set): set value used by this operation.
+        used_question_hashes (set): set value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import update_coverage_ledger
+        >>> update_coverage_ledger(...)
+    
+    """
     user_message = (qa_output.get("user_message") or "").strip()
     if not user_message:
         return
@@ -363,12 +697,35 @@ def update_coverage_ledger(
         },
     )
 
-
 def is_duplicate_question(
     qa_output: Dict[str, Any],
     question_inputs: Dict[str, Any],
     doc_question_hashes: Dict[str, set[str]],
 ) -> tuple[bool, str]:
+    """Check whether duplicate question.
+    
+    Args:
+        qa_output (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        question_inputs (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        doc_question_hashes (Dict[str, set[str]]): Dict[str, set[str]] value used by this operation.
+    
+    Returns:
+        tuple[bool, str]: Boolean indicator describing the evaluated condition.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import is_duplicate_question
+        >>> is_duplicate_question(...)
+    
+    """
     question = (qa_output.get("user_message") or "").strip()
     if not question:
         return False, ""
@@ -381,13 +738,37 @@ def is_duplicate_question(
     question_hash = hash_text(question)
     return question_hash in doc_question_hashes.get(source_path, set()), source_path
 
-
 def update_doc_question_memory(
     qa_output: Dict[str, Any],
     question_inputs: Dict[str, Any],
     doc_question_hashes: Dict[str, set[str]],
     doc_recent_questions: Dict[str, List[str]],
 ) -> None:
+    """Update doc question memory.
+    
+    Args:
+        qa_output (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        question_inputs (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        doc_question_hashes (Dict[str, set[str]]): Dict[str, set[str]] value used by this operation.
+        doc_recent_questions (Dict[str, List[str]]): Dict[str, List[str]] value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import update_doc_question_memory
+        >>> update_doc_question_memory(...)
+    
+    """
     question = (qa_output.get("user_message") or "").strip()
     if not question:
         return
@@ -401,8 +782,30 @@ def update_doc_question_memory(
     doc_question_hashes.setdefault(source_path, set()).add(question_hash)
     doc_recent_questions.setdefault(source_path, []).append(question)
 
-
 def lookup_source_path(question_inputs: Dict[str, Any], topic_id: str) -> str:
+    """Look up source path.
+    
+    Args:
+        question_inputs (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        topic_id (str): str value used by this operation.
+    
+    Returns:
+        str: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import lookup_source_path
+        >>> lookup_source_path(...)
+    
+    """
     if not topic_id:
         return ""
 
@@ -420,7 +823,6 @@ def lookup_source_path(question_inputs: Dict[str, Any], topic_id: str) -> str:
             return snippet.get("source_path") or snippet.get("source_descriptor") or ""
     return ""
 
-
 def maybe_select_seed_question(
     base_inputs: Dict[str, Any],
     turn_index: int,
@@ -428,6 +830,32 @@ def maybe_select_seed_question(
     used_seed_hashes: set[str],
     seed_topic_usage: Dict[str, int],
 ) -> tuple[str, str]:
+    """Conditionally execute select seed question.
+    
+    Args:
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        turn_index (int): Numeric control value for processing behavior.
+        rng (random.Random): random.Random value used by this operation.
+        used_seed_hashes (set[str]): set[str] value used by this operation.
+        seed_topic_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+    
+    Returns:
+        tuple[str, str]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import maybe_select_seed_question
+        >>> maybe_select_seed_question(...)
+    
+    """
     if turn_index != 1:
         return "", ""
     if (base_inputs.get("question") or "").strip():
@@ -452,7 +880,6 @@ def maybe_select_seed_question(
 
     return select_seed_candidate(seed_topics, used_seed_hashes, seed_topic_usage, rng)
 
-
 def load_seed_topics(
     path: str,
     project_root: Path,
@@ -460,6 +887,32 @@ def load_seed_topics(
     target_language: str = "",
     seed_topics_variant: str = "",
 ) -> Dict[str, List[str]]:
+    """Load seed topics.
+    
+    Args:
+        path (str): Filesystem path used by this operation.
+        project_root (Path): Resolved project directory context.
+        config_dir (Path): Resolved project directory context.
+        target_language (str): str value used by this operation.
+        seed_topics_variant (str): str value used by this operation.
+    
+    Returns:
+        Dict[str, List[str]]: Loaded value parsed from upstream sources.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import load_seed_topics
+        >>> load_seed_topics(...)
+    
+    """
     if not path:
         return {}
 
@@ -487,7 +940,6 @@ def load_seed_topics(
         target_language=target_language,
         seed_topics_variant=seed_topics_variant,
     )
-
 
 def _load_seed_topics_from_any_file(
     file_path: Path,
@@ -520,7 +972,6 @@ def _load_seed_topics_from_any_file(
 
     return _clean_seed_topics_map(data)
 
-
 def _load_seed_topics_from_directory(
     seed_dir: Path,
     target_language: str,
@@ -547,7 +998,6 @@ def _load_seed_topics_from_directory(
     data = _load_mapping_file(variant_path)
     return _clean_seed_topics_map(data) if data else {}
 
-
 def _load_seed_topics_from_structured_file(
     file_path: Path,
     target_language: str,
@@ -565,7 +1015,6 @@ def _load_seed_topics_from_structured_file(
         seed_topics_variant=seed_topics_variant,
     )
 
-
 def _clean_seed_topics_map(data: Dict[str, Any]) -> Dict[str, List[str]]:
     seed_topics: Dict[str, List[str]] = {}
     for topic, questions in data.items():
@@ -576,10 +1025,8 @@ def _clean_seed_topics_map(data: Dict[str, Any]) -> Dict[str, List[str]]:
             seed_topics[str(topic)] = cleaned
     return seed_topics
 
-
 def _load_seed_index(index_path: Path) -> Dict[str, Any]:
     return _load_mapping_file(index_path)
-
 
 def _resolve_variant_for_directory(
     seed_dir: Path,
@@ -615,14 +1062,12 @@ def _resolve_variant_for_directory(
             return candidate
     return ""
 
-
 def _resolve_variant_for_legacy_file(target_language: str, seed_topics_variant: str) -> str:
     explicit_variant = seed_topics_variant.strip().lower()
     if explicit_variant:
         return explicit_variant
     target = target_language.strip().lower()
     return _DEFAULT_VARIANT_BY_TARGET_LANGUAGE.get(target, _FINAL_VARIANT_FALLBACK)
-
 
 def _is_legacy_nested_seed_topics(data: Dict[str, Any]) -> bool:
     if not data:
@@ -643,7 +1088,6 @@ def _is_legacy_nested_seed_topics(data: Dict[str, Any]) -> bool:
         if not any(isinstance(item, list) for item in value.values()):
             return False
     return True
-
 
 def _extract_seed_topics_from_legacy_nested(data: Dict[str, Any], variant: str) -> Dict[str, List[str]]:
     # Keep backward compatibility with old schema:
@@ -671,7 +1115,6 @@ def _extract_seed_topics_from_legacy_nested(data: Dict[str, Any], variant: str) 
         if cleaned:
             seed_topics[str(topic)] = cleaned
     return seed_topics
-
 
 def _parse_structured_seed_payload(data: Dict[str, Any]) -> Dict[str, Any]:
     variants_raw = data.get("variants")
@@ -720,7 +1163,6 @@ def _parse_structured_seed_payload(data: Dict[str, Any]) -> Dict[str, Any]:
         "final_fallback": final_fallback,
     }
 
-
 def _select_seed_topics_from_structured(
     structured: Dict[str, Any],
     target_language: str,
@@ -742,7 +1184,6 @@ def _select_seed_topics_from_structured(
     if not isinstance(topics, dict):
         return {}
     return topics
-
 
 def _resolve_variant_from_structured(
     structured: Dict[str, Any],
@@ -791,7 +1232,6 @@ def _resolve_variant_from_structured(
             return candidate
     return ""
 
-
 def _looks_like_variant_map(data: Dict[str, Any]) -> bool:
     candidate_items = []
     for key, value in data.items():
@@ -805,7 +1245,6 @@ def _looks_like_variant_map(data: Dict[str, Any]) -> bool:
             return False
     return True
 
-
 def _load_mapping_file(path: Path) -> Dict[str, Any]:
     if not path.exists():
         return {}
@@ -815,14 +1254,12 @@ def _load_mapping_file(path: Path) -> Dict[str, Any]:
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
-
 def _find_variant_file(seed_dir: Path, variant: str) -> Path | None:
     for suffix in (".yaml", ".yml", ".json"):
         candidate = seed_dir / f"{variant}{suffix}"
         if candidate.exists():
             return candidate
     return None
-
 
 def _as_str_dict(raw: Any) -> Dict[str, str]:
     if not isinstance(raw, dict):
@@ -835,13 +1272,37 @@ def _as_str_dict(raw: Any) -> Dict[str, str]:
             normalized[key_text] = value_text
     return normalized
 
-
 def select_seed_candidate(
     seed_topics: Dict[str, List[str]],
     used_seed_hashes: set[str],
     seed_topic_usage: Dict[str, int],
     rng: random.Random,
 ) -> tuple[str, str]:
+    """Select seed candidate.
+    
+    Args:
+        seed_topics (Dict[str, List[str]]): Dict[str, List[str]] value used by this operation.
+        used_seed_hashes (set[str]): set[str] value used by this operation.
+        seed_topic_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+        rng (random.Random): random.Random value used by this operation.
+    
+    Returns:
+        tuple[str, str]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import select_seed_candidate
+        >>> select_seed_candidate(...)
+    
+    """
     candidates_by_topic: Dict[str, List[str]] = {}
     for topic, questions in seed_topics.items():
         available = [q for q in questions if hash_text(q) not in used_seed_hashes]
@@ -857,8 +1318,29 @@ def select_seed_candidate(
     chosen_question = rng.choice(candidates_by_topic[chosen_topic])
     return chosen_topic, chosen_question
 
-
 def build_used_seed_hashes(ledger_entries: List[Dict[str, Any]]) -> set[str]:
+    """Build used seed hashes.
+    
+    Args:
+        ledger_entries (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        set[str]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_used_seed_hashes
+        >>> build_used_seed_hashes(...)
+    
+    """
     hashes: set[str] = set()
     for entry in ledger_entries:
         seed_hash = entry.get("seed_question_hash")
@@ -866,8 +1348,29 @@ def build_used_seed_hashes(ledger_entries: List[Dict[str, Any]]) -> set[str]:
             hashes.add(seed_hash)
     return hashes
 
-
 def build_seed_topic_usage(ledger_entries: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Build seed topic usage.
+    
+    Args:
+        ledger_entries (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        Dict[str, int]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import build_seed_topic_usage
+        >>> build_seed_topic_usage(...)
+    
+    """
     usage: Dict[str, int] = {}
     for entry in ledger_entries:
         topic = entry.get("seed_topic")
@@ -875,13 +1378,37 @@ def build_seed_topic_usage(ledger_entries: List[Dict[str, Any]]) -> Dict[str, in
             usage[topic] = usage.get(topic, 0) + 1
     return usage
 
-
 def update_seed_memory(
     qa_output: Dict[str, Any],
     question_inputs: Dict[str, Any],
     used_seed_hashes: set[str],
     seed_topic_usage: Dict[str, int],
 ) -> None:
+    """Update seed memory.
+    
+    Args:
+        qa_output (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        question_inputs (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        used_seed_hashes (set[str]): set[str] value used by this operation.
+        seed_topic_usage (Dict[str, int]): Dict[str, int] value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.sampling import update_seed_memory
+        >>> update_seed_memory(...)
+    
+    """
     _ = qa_output
     seed_question = question_inputs.get("seed_question") or ""
     seed_topic = question_inputs.get("seed_topic") or ""

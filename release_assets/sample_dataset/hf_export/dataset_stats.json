@@ -1,0 +1,49 @@
+{
+  "source_file": "conversations_sharegpt_judged.jsonl",
+  "records": 2,
+  "languages": {
+    "morocco": 2
+  },
+  "turn_count": {
+    "min": 5,
+    "max": 6,
+    "avg": 5.5,
+    "distribution": {
+      "5": 1,
+      "6": 1
+    }
+  },
+  "judge": {
+    "conversations_with_scores": 2,
+    "avg_score_mean": 5.0,
+    "avg_score_distribution": {
+      "4": 1,
+      "6": 1
+    },
+    "per_turn_score_mean": 5.0909,
+    "per_turn_score_distribution": {
+      "0": 1,
+      "2": 2,
+      "3": 2,
+      "4": 1,
+      "8": 3,
+      "9": 2
+    },
+    "conversation_score_mean": null,
+    "conversation_score_distribution": {}
+  },
+  "text": {
+    "avg_words_per_conversation": 1143.0,
+    "avg_tokens_per_conversation_estimate": 1661.5,
+    "avg_words_per_message": 103.9091,
+    "avg_tokens_per_message_estimate": 151.0455,
+    "word_count_distribution": {
+      "729-798": 1,
+      "1499-1557": 1
+    },
+    "token_estimate_distribution": {
+      "1064-1163": 1,
+      "2164-2259": 1
+    }
+  }
+}

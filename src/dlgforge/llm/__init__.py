@@ -1,3 +1,7 @@
+"""Public exports for LLM settings and client helpers.
+
+"""
+
 from dlgforge.llm.client import ChatResult, OpenAIModelClient
 from dlgforge.llm.settings import missing_models, required_agents, resolve_agent_used_name, resolve_llm_settings
 

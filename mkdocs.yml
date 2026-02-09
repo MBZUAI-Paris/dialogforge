@@ -1,0 +1,126 @@
+site_name: DialogForge
+site_description: Auto-generated API and operator docs for DialogForge
+repo_url: https://github.com/MBZUAI-Paris/dialogforge
+repo_name: MBZUAI-Paris/dialogforge
+docs_dir: docs
+exclude_docs: README.md
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  logo: assets/logo-mark.svg
+  favicon: assets/logo-mark.svg
+  features:
+    - navigation.tabs
+    - navigation.footer
+
+copyright: Copyright © 2026 MBZUAI-IFM Paris Lab
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MBZUAI-Paris/dialogforge
+      name: DialogForge on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/dlgforge/
+      name: DialogForge on PyPI
+    - icon: material/web
+      link: https://ifm.ai/
+      name: MBZUAI-IFM Paris Lab
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - javascripts/mermaid-init.js
+  - javascripts/nav-defaults.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: google
+            show_source: false
+            members_order: source
+            merge_init_into_class: true
+            show_root_toc_entry: false
+            inherited_members: false
+            filters:
+              - "!^_"
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Setup / Installation: setup-installation.md
+  - Configuration: CONFIG_REFERENCE.md
+  - CLI / Usage: CLI_REFERENCE.md
+  - API Reference:
+      - Overview: reference/index.md
+      - dlgforge:
+          - Package: reference/dlgforge/index.md
+          - __main__: reference/dlgforge/__main__.md
+          - cli: reference/dlgforge/cli.md
+          - config:
+              - Package: reference/dlgforge/config/index.md
+              - defaults: reference/dlgforge/config/defaults.md
+              - loader: reference/dlgforge/config/loader.md
+              - personas: reference/dlgforge/config/personas.md
+          - distributed:
+              - Package: reference/dlgforge/distributed/index.md
+              - bootstrap: reference/dlgforge/distributed/bootstrap.md
+              - provisioning: reference/dlgforge/distributed/provisioning.md
+              - ray_runtime: reference/dlgforge/distributed/ray_runtime.md
+              - types: reference/dlgforge/distributed/types.md
+          - io:
+              - Package: reference/dlgforge/io/index.md
+              - output: reference/dlgforge/io/output.md
+          - llm:
+              - Package: reference/dlgforge/llm/index.md
+              - client: reference/dlgforge/llm/client.md
+              - settings: reference/dlgforge/llm/settings.md
+          - pipeline:
+              - Package: reference/dlgforge/pipeline/index.md
+              - dedup: reference/dlgforge/pipeline/dedup.md
+              - hf_push: reference/dlgforge/pipeline/hf_push.md
+              - history: reference/dlgforge/pipeline/history.md
+              - prompts: reference/dlgforge/pipeline/prompts.md
+              - runner: reference/dlgforge/pipeline/runner.md
+              - sampling: reference/dlgforge/pipeline/sampling.md
+              - seed_topics_migration: reference/dlgforge/pipeline/seed_topics_migration.md
+              - state: reference/dlgforge/pipeline/state.md
+          - tools:
+              - Package: reference/dlgforge/tools/index.md
+              - retrieval: reference/dlgforge/tools/retrieval.md
+              - web_search: reference/dlgforge/tools/web_search.md
+          - utils:
+              - Package: reference/dlgforge/utils/index.md
+              - env: reference/dlgforge/utils/env.md
+              - json: reference/dlgforge/utils/json.md
+              - logging: reference/dlgforge/utils/logging.md
+              - merge: reference/dlgforge/utils/merge.md
+              - text: reference/dlgforge/utils/text.md
+  - Guides:
+      - Architecture: ARCHITECTURE.md
+      - Distributed Runtime: DISTRIBUTED_RUNTIME.md
+      - Outputs and Schemas: OUTPUTS_AND_SCHEMAS.md
+      - Retrieval and Prompts: RETRIEVAL_AND_PROMPTS.md
+      - HF Export: HF_EXPORT.md
+      - API Index (Curated): API_INDEX.md
+  - Community:
+      - Contributing, Issues, and Pull Requests: contributing.md
+      - Code of Conduct: https://github.com/MBZUAI-Paris/dialogforge/blob/main/CODE_OF_CONDUCT.md
+      - Security: https://github.com/MBZUAI-Paris/dialogforge/security/policy
+      - Support: https://github.com/MBZUAI-Paris/dialogforge/blob/main/SUPPORT.md

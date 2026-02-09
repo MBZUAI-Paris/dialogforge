@@ -1,3 +1,8 @@
+"""Public package entrypoints for DialogForge.
+
+This module defines the stable, top-level APIs intended for external callers.
+"""
+
 from __future__ import annotations
 
 from dlgforge.pipeline.hf_push import HFPushOptions, run_push

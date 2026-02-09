@@ -1,6 +1,25 @@
-# dlgforge
+<p align="center">
+  <img src="assets/logo.png" alt="DialogForge logo" width="140" />
+</p>
 
-Lightweight synthetic multi-turn dialogue generation with an OpenAI-compatible API.
+<h1 align="center">dlgforge</h1>
+
+<p align="center"><strong>Lightweight synthetic multi-turn dialogue generation with a LiteLLM-routed LLM stack.</strong></p>
+
+<p align="center">
+  <a href="https://github.com/MBZUAI-Paris/dialogforge/actions/workflows/ci.yml">
+    <img src="https://github.com/MBZUAI-Paris/dialogforge/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://pypi.org/project/dlgforge/">
+    <img src="https://img.shields.io/pypi/v/dlgforge?style=flat-square" alt="PyPI">
+  </a>
+  <a href="https://pypi.org/project/dlgforge/">
+    <img src="https://img.shields.io/pypi/pyversions/dlgforge?style=flat-square" alt="Python versions">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/MBZUAI-Paris/dialogforge?style=flat-square" alt="License">
+  </a>
+</p>
 
 `dlgforge` generates grounded user-assistant conversations with:
 - async batched generation
@@ -10,7 +29,14 @@ Lightweight synthetic multi-turn dialogue generation with an OpenAI-compatible A
 - export-ready JSONL artifacts
 - optional one-command distributed bootstrap (Ray + Postgres + vLLM backends)
 
-No CrewAI, LiteLLM, FastAPI, or multiprocessing.
+No CrewAI, FastAPI, or multiprocessing.
+
+## Documentation hub
+- [Docs home](docs/index.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Configuration reference](docs/CONFIG_REFERENCE.md)
+- [CLI reference](docs/CLI_REFERENCE.md)
+- [API reference (auto-generated)](docs/reference/index.md)
 
 ## Table of contents
 - [1) What this project does](#1-what-this-project-does)
@@ -56,12 +82,12 @@ cp .env.example .env
 ```
 
 Minimum required:
-- `OPENAI_API_KEY`
 - model source from one of:
   - `llm.agents.<agent>.model`
   - `llm.model`
   - `LLM_MODEL`
   - `OPENAI_MODEL`
+- provider credential env vars for whichever models you use (for example `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`)
 
 ### 2.3 Run generation
 ```bash
@@ -104,6 +130,7 @@ llm:
     qa_judge:
       model: openai/gpt-oss-20b
 ```
+For non-OpenAI `llm.base_url` values (for example LM Studio / vLLM), dlgforge auto-uses LiteLLM openai-compatible passthrough so namespaced model IDs like `openai/gpt-oss-20b` are forwarded unchanged.
 ```bash
 dlgforge run config.yaml
 ```
@@ -178,7 +205,34 @@ Notes:
 - on macOS, use LM Studio local mode (`A`) or distributed attach mode (`D`).
 - if using managed mode, align your `llm.agents.*.model` values with `llm.vllm.served_model_name`.
 
-### 2.7 Start Postgres quickly (required for distributed modes)
+### 2.7 Mixed providers by agent
+When mixing providers (for example OpenAI + Gemini + LM Studio), define provider/model/base URL per agent and follow LiteLLM provider conventions:
+- LiteLLM providers reference: [https://docs.litellm.ai/docs/providers](https://docs.litellm.ai/docs/providers)
+
+Recommended per-agent setup:
+- OpenAI API:
+  - `provider: openai`
+  - `model: gpt-5.2` (or another OpenAI model)
+  - `base_url: https://api.openai.com/v1`
+- Gemini (Google AI Studio):
+  - `provider: gemini`
+  - `model: gemini/gemini-2.0-flash` (or another Gemini model)
+  - leave `base_url` empty unless you intentionally set a Gemini-specific proxy/base URL
+- LM Studio (OpenAI-compatible local server):
+  - `provider: openai` (or `lm_studio`)
+  - `model: openai/gpt-oss-20b` (or your served model name format)
+  - `base_url: http://localhost:1234/v1`
+- vLLM (OpenAI-compatible endpoint):
+  - `provider: openai` (or `hosted_vllm`)
+  - `base_url: http://localhost:8000/v1`
+  - `api_key: EMPTY` (if your endpoint does not require auth)
+
+Be careful with global env/config fallbacks:
+- `OPENAI_BASE_URL` can affect agents that do not set an agent-level `base_url`.
+- `LLM_<ROLE>_*` env vars override `config.yaml` values for that specific role.
+- for mixed providers, prefer setting provider/model/base_url explicitly per agent in `llm.agents.<role>`.
+
+### 2.8 Start Postgres quickly (required for distributed modes)
 Distributed modes (`C`, `D`, `E`) require Postgres.
 
 Start a local Postgres with Docker:
@@ -246,7 +300,7 @@ Behavior:
 - each conversation samples independently
 
 ### 4.2 `llm`
-OpenAI-compatible settings:
+LiteLLM-routed settings:
 - `llm.provider`
 - `llm.base_url`
 - `llm.api_key` / env

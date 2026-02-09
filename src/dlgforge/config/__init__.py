@@ -1,3 +1,7 @@
+"""Public exports for configuration helpers.
+
+"""
+
 from dlgforge.config.defaults import DEFAULT_CONFIG
 from dlgforge.config.loader import (
     build_base_inputs,

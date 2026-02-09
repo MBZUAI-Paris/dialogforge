@@ -1,3 +1,7 @@
+"""Output path definitions and artifact persistence helpers.
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -6,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
 
 _SFT_COLUMN_DEFAULTS: Dict[str, str] = {
     "messages": "messages",
@@ -21,8 +24,29 @@ _SFT_COLUMN_ALIASES: Dict[str, str] = {
 }
 _SFT_COLUMNS: Dict[str, str] = dict(_SFT_COLUMN_DEFAULTS)
 
-
 def configure_output_columns(columns: Optional[Dict[str, Any]]) -> None:
+    """Configure output columns.
+    
+    Args:
+        columns (Optional[Dict[str, Any]]): Optional[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import configure_output_columns
+        >>> configure_output_columns(...)
+    
+    """
     configured = dict(_SFT_COLUMN_DEFAULTS)
     if isinstance(columns, dict):
         for key, raw_value in columns.items():
@@ -37,13 +61,31 @@ def configure_output_columns(columns: Optional[Dict[str, Any]]) -> None:
     _SFT_COLUMNS.clear()
     _SFT_COLUMNS.update(configured)
 
-
 def _sft_columns() -> Dict[str, str]:
     return _SFT_COLUMNS
 
-
 @dataclass
 class OutputPaths:
+    """Resolved filesystem paths for all generated output artifacts.
+    
+    Args:
+        project_root (Path): Resolved project directory context.
+        output_dir (Path): Path value used by this operation.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.io.output import OutputPaths
+        >>> OutputPaths(...)
+    
+    """
     project_root: Path
     output_dir: Path
 
@@ -58,8 +100,29 @@ class OutputPaths:
         self.run_state_dir = self.output_dir / "run_state"
         self.last_run_id_file = self.run_state_dir / "last_run_id.txt"
 
-
 def ensure_output_layout(paths: OutputPaths) -> None:
+    """Ensure output layout.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import ensure_output_layout
+        >>> ensure_output_layout(...)
+    
+    """
     paths.output_dir.mkdir(parents=True, exist_ok=True)
     paths.conversation_dir.mkdir(parents=True, exist_ok=True)
     paths.run_state_dir.mkdir(parents=True, exist_ok=True)
@@ -74,7 +137,6 @@ def ensure_output_layout(paths: OutputPaths) -> None:
     ]:
         if not path.exists():
             path.touch()
-
 
 def _serialize_result(result: Any) -> Dict[str, Any]:
     if result is None:
@@ -91,8 +153,30 @@ def _serialize_result(result: Any) -> Dict[str, Any]:
                 continue
     return {"repr": repr(result)}
 
-
 def load_coverage_ledger(paths: OutputPaths, max_entries: int = 2000) -> List[Dict[str, Any]]:
+    """Load coverage ledger.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        max_entries (int): Numeric control value for processing behavior.
+    
+    Returns:
+        List[Dict[str, Any]]: Loaded value parsed from upstream sources.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import load_coverage_ledger
+        >>> load_coverage_ledger(...)
+    
+    """
     if not paths.coverage_ledger_path.exists():
         return []
     lines = paths.coverage_ledger_path.read_text(encoding="utf-8").splitlines()
@@ -110,22 +194,89 @@ def load_coverage_ledger(paths: OutputPaths, max_entries: int = 2000) -> List[Di
             continue
     return entries
 
-
 def append_coverage_ledger(paths: OutputPaths, entry: Dict[str, Any]) -> None:
+    """Append coverage ledger.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        entry (Dict[str, Any]): Mapping payload for this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import append_coverage_ledger
+        >>> append_coverage_ledger(...)
+    
+    """
     ensure_output_layout(paths)
     with paths.coverage_ledger_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
 
-
 def save_run_state(paths: OutputPaths, run_id: str, payload: Dict[str, Any]) -> Path:
+    """Save run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        run_id (str): Identifier for run state tracking.
+        payload (Dict[str, Any]): Mapping payload for this operation.
+    
+    Returns:
+        Path: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import save_run_state
+        >>> save_run_state(...)
+    
+    """
     ensure_output_layout(paths)
     run_file = paths.run_state_dir / f"{run_id}.json"
     run_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     paths.last_run_id_file.write_text(run_id, encoding="utf-8")
     return run_file
 
-
 def load_run_state(paths: OutputPaths, run_id: str) -> Optional[Dict[str, Any]]:
+    """Load run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        run_id (str): Identifier for run state tracking.
+    
+    Returns:
+        Optional[Dict[str, Any]]: Loaded value parsed from upstream sources.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import load_run_state
+        >>> load_run_state(...)
+    
+    """
     run_file = paths.run_state_dir / f"{run_id}.json"
     if not run_file.exists():
         return None
@@ -134,7 +285,6 @@ def load_run_state(paths: OutputPaths, run_id: str) -> Optional[Dict[str, Any]]:
     except json.JSONDecodeError:
         return None
     return parsed if isinstance(parsed, dict) else None
-
 
 def save_training_sample(
     paths: OutputPaths,
@@ -147,6 +297,36 @@ def save_training_sample(
     raw_results: Optional[List[Dict[str, Any]]] = None,
     conversation_id: Optional[str] = None,
 ) -> Path:
+    """Save training sample.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        question (str): str value used by this operation.
+        inputs (Dict[str, Any]): Mapping payload for this operation.
+        result (Any): Input value for this operation.
+        turns (Optional[List[Dict[str, Any]]]): Conversation or message data used during processing.
+        conversation_history (Optional[List[Dict[str, Any]]]): Optional[List[Dict[str, Any]]] value used by this operation.
+        public_history (Optional[List[Dict[str, Any]]]): Conversation or message data used during processing.
+        raw_results (Optional[List[Dict[str, Any]]]): Conversation or message data used during processing.
+        conversation_id (Optional[str]): Identifier for a conversation artifact.
+    
+    Returns:
+        Path: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import save_training_sample
+        >>> save_training_sample(...)
+    
+    """
     ensure_output_layout(paths)
 
     turns = turns or []
@@ -191,7 +371,6 @@ def save_training_sample(
     )
     return paths.dataset_file
 
-
 def append_sharegpt_judged_record(
     paths: OutputPaths,
     conversation_id: str,
@@ -201,6 +380,34 @@ def append_sharegpt_judged_record(
     messages: Optional[List[Dict[str, Any]]] = None,
     conversation_judge: Optional[Dict[str, Any]] = None,
 ) -> None:
+    """Append sharegpt judged record.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        conversation_id (str): Identifier for a conversation artifact.
+        timestamp (str): str value used by this operation.
+        inputs (Dict[str, Any]): Mapping payload for this operation.
+        turns (List[Dict[str, Any]]): Conversation or message data used during processing.
+        messages (Optional[List[Dict[str, Any]]]): Conversation or message data used during processing.
+        conversation_judge (Optional[Dict[str, Any]]): Optional[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.io.output import append_sharegpt_judged_record
+        >>> append_sharegpt_judged_record(...)
+    
+    """
     ensure_output_layout(paths)
     columns = _sft_columns()
     sft_messages = _sharegpt_messages_from_turns(turns, fallback=messages or [])
@@ -218,7 +425,6 @@ def append_sharegpt_judged_record(
     with paths.conversation_sft_judged_file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
-
 def _build_public_messages(history: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     messages: List[Dict[str, Any]] = []
     for entry in history:
@@ -235,7 +441,6 @@ def _build_public_messages(history: List[Dict[str, Any]]) -> List[Dict[str, Any]
                 message["agent"] = agent
             messages.append(message)
     return messages
-
 
 def _write_conversation_artifacts(
     paths: OutputPaths,
@@ -330,7 +535,6 @@ def _write_conversation_artifacts(
             }
             handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
-
 def _append_sharegpt_record(
     paths: OutputPaths,
     conversation_id: str,
@@ -353,7 +557,6 @@ def _append_sharegpt_record(
     with paths.conversation_sft_file.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
-
 def _should_append_judged_record(inputs: Dict[str, Any], turns: List[Dict[str, Any]]) -> bool:
     conversation_judge = inputs.get("conversation_judge")
     if isinstance(conversation_judge, dict) and conversation_judge:
@@ -372,7 +575,6 @@ def _should_append_judged_record(inputs: Dict[str, Any], turns: List[Dict[str, A
         if notes != "disabled":
             return True
     return False
-
 
 def _sharegpt_messages_from_turns(turns: List[Dict[str, Any]], fallback: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     messages: List[Dict[str, Any]] = []
@@ -408,7 +610,6 @@ def _sharegpt_messages_from_turns(turns: List[Dict[str, Any]], fallback: List[Di
         for msg in fallback
         if msg.get("role") and msg.get("content")
     ]
-
 
 def _sharegpt_messages_with_tools_from_turns(
     turns: List[Dict[str, Any]],
@@ -481,7 +682,6 @@ def _sharegpt_messages_with_tools_from_turns(
         if msg.get("role") and msg.get("content")
     ]
 
-
 def _build_sft_metadata(
     conversation_id: str,
     timestamp: str,
@@ -518,7 +718,6 @@ def _build_sft_metadata(
         "seed_questions": seed_questions,
     }
 
-
 def _build_user_reasoning(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for turn in turns:
@@ -538,7 +737,6 @@ def _build_user_reasoning(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             }
         )
     return rows
-
 
 def _normalize_reasoning_trace(trace: Any) -> Dict[str, Any]:
     if not isinstance(trace, dict):
@@ -611,7 +809,6 @@ def _normalize_reasoning_trace(trace: Any) -> Dict[str, Any]:
 
     return normalized
 
-
 def _build_assistant_reasoning(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     for turn in turns:
@@ -625,7 +822,6 @@ def _build_assistant_reasoning(turns: List[Dict[str, Any]]) -> List[Dict[str, An
             }
         )
     return rows
-
 
 def _build_judge_payload(
     turns: List[Dict[str, Any]],
@@ -656,7 +852,6 @@ def _build_judge_payload(
         "conversation": conversation_judge if isinstance(conversation_judge, dict) else {},
     }
 
-
 def _max_difficulty(difficulties: List[str]) -> str:
     ranking = {"easy": 1, "medium": 2, "hard": 3}
     best = ""
@@ -667,7 +862,6 @@ def _max_difficulty(difficulties: List[str]) -> str:
             best_score = score
             best = diff
     return best
-
 
 def _avg_score(values: List[Any]) -> Optional[float]:
     numeric = [x for x in values if isinstance(x, (int, float))]

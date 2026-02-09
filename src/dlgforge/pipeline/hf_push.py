@@ -1,3 +1,7 @@
+"""Hugging Face export preparation and push helpers.
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,12 +17,44 @@ from dlgforge.config import load_config, resolve_output_columns, resolve_output_
 from dlgforge.io import OutputPaths
 from dlgforge.utils import load_dotenv_files, setup_logging
 
-
 LOGGER = logging.getLogger("dlgforge.pipeline")
-
 
 @dataclass
 class HFPushSettings:
+    """Resolved Hugging Face export/push settings.
+    
+    Args:
+        enabled (bool): Boolean flag that controls optional behavior.
+        auto_push_on_run (bool): bool value used by this operation.
+        repo_id (str): str value used by this operation.
+        repo_type (str): str value used by this operation.
+        export_dir (Path): Path value used by this operation.
+        include_run_state (bool): bool value used by this operation.
+        private (bool): bool value used by this operation.
+        commit_message (str): str value used by this operation.
+        source_file (str): Filesystem path used by this operation.
+        clean_remote (bool): Boolean flag that controls optional behavior.
+        generate_stats (bool): bool value used by this operation.
+        stats_file (str): str value used by this operation.
+        generate_plots (bool): bool value used by this operation.
+        plots_dir (str): str value used by this operation.
+        output_columns (Dict[str, str]): Dict[str, str] value used by this operation.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import HFPushSettings
+        >>> HFPushSettings(...)
+    
+    """
     enabled: bool
     auto_push_on_run: bool
     repo_id: str
@@ -35,9 +71,37 @@ class HFPushSettings:
     plots_dir: str
     output_columns: Dict[str, str]
 
-
 @dataclass
 class HFPushOptions:
+    """CLI override options for export/push operations.
+    
+    Args:
+        repo_id (str): str value used by this operation.
+        repo_type (str): str value used by this operation.
+        source_dir (str): str value used by this operation.
+        export_dir (str): str value used by this operation.
+        include_run_state (bool): bool value used by this operation.
+        token (Optional[str]): Optional[str] value used by this operation.
+        commit_message (str): str value used by this operation.
+        prepare_export (bool): Boolean flag that controls optional behavior.
+        push (bool): Boolean flag that controls optional behavior.
+        clean_remote (bool): Boolean flag that controls optional behavior.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import HFPushOptions
+        >>> HFPushOptions(...)
+    
+    """
     repo_id: str = ""
     repo_type: str = ""
     source_dir: str = ""
@@ -49,8 +113,31 @@ class HFPushOptions:
     push: bool = True
     clean_remote: bool = False
 
-
 def run_push(config_path: str, options: HFPushOptions) -> None:
+    """Prepare export artifacts and optionally push them to the Hub.
+    
+    Args:
+        config_path (str): Path to a configuration file.
+        options (HFPushOptions): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        FileNotFoundError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import run_push
+        >>> run_push(...)
+    
+    """
     config_file = Path(config_path).expanduser().resolve()
     if not config_file.exists() or not config_file.is_file():
         raise FileNotFoundError(f"Config file not found: {config_file}")
@@ -97,8 +184,31 @@ def run_push(config_path: str, options: HFPushOptions) -> None:
         )
         LOGGER.info(f"[hf-push] Upload completed to {repo_id} ({repo_type}) from {export_dir}")
 
-
 def maybe_auto_push_after_run(cfg: Dict[str, Any], output_paths: OutputPaths) -> None:
+    """Conditionally execute auto push after run.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        output_paths (OutputPaths): Filesystem path used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import maybe_auto_push_after_run
+        >>> maybe_auto_push_after_run(...)
+    
+    """
     settings = resolve_hf_push_settings(cfg, output_paths.project_root)
     if not settings.enabled or not settings.auto_push_on_run:
         return
@@ -143,8 +253,31 @@ def maybe_auto_push_after_run(cfg: Dict[str, Any], output_paths: OutputPaths) ->
     except Exception as err:
         LOGGER.warning(f"[hf-push] Auto-push skipped due to error: {err}")
 
-
 def resolve_hf_push_settings(cfg: Dict[str, Any], project_root: Path) -> HFPushSettings:
+    """Resolve hf push settings.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        project_root (Path): Resolved project directory context.
+    
+    Returns:
+        HFPushSettings: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import resolve_hf_push_settings
+        >>> resolve_hf_push_settings(...)
+    
+    """
     saving_cfg = cfg.get("saving", {}) or {}
     hf_cfg = saving_cfg.get("hf_push", {}) or {}
     output_columns = resolve_output_columns(cfg)
@@ -179,7 +312,6 @@ def resolve_hf_push_settings(cfg: Dict[str, Any], project_root: Path) -> HFPushS
         output_columns=output_columns,
     )
 
-
 def prepare_export(
     source_dir: Path,
     export_dir: Path,
@@ -192,6 +324,38 @@ def prepare_export(
     plots_dir: str = "plots",
     output_columns: Optional[Dict[str, str]] = None,
 ) -> Path:
+    """Prepare export.
+    
+    Args:
+        source_dir (Path): Path value used by this operation.
+        export_dir (Path): Path value used by this operation.
+        source_file (str): Filesystem path used by this operation.
+        include_run_state (bool): bool value used by this operation.
+        repo_id (str | None): str | None value used by this operation.
+        generate_stats (bool): bool value used by this operation.
+        stats_file (str): str value used by this operation.
+        generate_plots (bool): bool value used by this operation.
+        plots_dir (str): str value used by this operation.
+        output_columns (Optional[Dict[str, str]]): Optional[Dict[str, str]] value used by this operation.
+    
+    Returns:
+        Path: Value produced by this API.
+    
+    Raises:
+        FileNotFoundError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import prepare_export
+        >>> prepare_export(...)
+    
+    """
     if not source_dir.exists():
         raise FileNotFoundError(f"Source directory not found: {source_dir}")
 
@@ -241,7 +405,6 @@ def prepare_export(
     )
     return export_dir
 
-
 def _resolve_effective_source_file(source_dir: Path, source_file: str) -> str:
     requested = source_file.strip()
     if requested != "conversations_sharegpt.jsonl":
@@ -255,7 +418,6 @@ def _resolve_effective_source_file(source_dir: Path, source_file: str) -> str:
         )
         return "conversations_sharegpt_judged.jsonl"
     return requested
-
 
 def _sanitize_jsonl_for_hf(path: Path) -> bool:
     tmp_path = path.with_name(path.name + ".tmp")
@@ -282,7 +444,6 @@ def _sanitize_jsonl_for_hf(path: Path) -> bool:
     else:
         tmp_path.unlink(missing_ok=True)
     return changed
-
 
 def _sanitize_hf_row(row: Any) -> Any:
     if not isinstance(row, dict):
@@ -313,65 +474,149 @@ def _sanitize_hf_row(row: Any) -> Any:
     out["assistant_reasoning"] = normalized_rows
     return out
 
-
 def _sanitize_reasoning_trace_for_hf(trace: Dict[str, Any]) -> Dict[str, Any]:
-    premises = trace.get("premises")
-    if not isinstance(premises, list):
-        return trace
-
     changed = False
-    cleaned_premises = []
-    for premise in premises:
-        if isinstance(premise, dict):
-            premise_id = premise.get("id")
-            premise_text = premise.get("text")
-            evidence_refs_raw = premise.get("evidence_refs", [])
-            if isinstance(evidence_refs_raw, list):
-                evidence_refs = [str(ref) for ref in evidence_refs_raw if str(ref).strip()]
-            elif evidence_refs_raw is None:
-                evidence_refs = []
-            else:
-                evidence_ref = str(evidence_refs_raw).strip()
-                evidence_refs = [evidence_ref] if evidence_ref else []
+    out = dict(trace)
 
+    question = _as_text(trace.get("question"))
+    if ("question" not in trace) or question != trace.get("question"):
+        changed = True
+    out["question"] = question
+
+    retrieval_queries = trace.get("retrieval_queries")
+    canonical_retrieval_queries = _sanitize_retrieval_queries_for_hf(retrieval_queries)
+    if retrieval_queries != canonical_retrieval_queries:
+        changed = True
+    out["retrieval_queries"] = canonical_retrieval_queries
+
+    evidence = trace.get("evidence")
+    canonical_evidence = _sanitize_evidence_for_hf(evidence)
+    if evidence != canonical_evidence:
+        changed = True
+    out["evidence"] = canonical_evidence
+
+    premises = trace.get("premises")
+    canonical_premises = _sanitize_premises_for_hf(premises)
+    if premises != canonical_premises:
+        changed = True
+    out["premises"] = canonical_premises
+
+    thinking = trace.get("thinking")
+    canonical_thinking = _sanitize_thinking_for_hf(thinking)
+    if thinking != canonical_thinking:
+        changed = True
+    out["thinking"] = canonical_thinking
+
+    confidence = _as_text(trace.get("confidence"))
+    if ("confidence" not in trace) or confidence != trace.get("confidence"):
+        changed = True
+    out["confidence"] = confidence
+
+    known_limits = _as_text_list(trace.get("known_limits"))
+    if ("known_limits" not in trace) or known_limits != trace.get("known_limits"):
+        changed = True
+    out["known_limits"] = known_limits
+
+    if not changed:
+        return trace
+    return out
+
+def _sanitize_retrieval_queries_for_hf(raw: Any) -> Dict[str, List[str]]:
+    if not isinstance(raw, dict):
+        return {"vector_db_search": [], "web_search": []}
+    return {
+        "vector_db_search": _as_text_list(raw.get("vector_db_search")),
+        "web_search": _as_text_list(raw.get("web_search")),
+    }
+
+def _sanitize_evidence_for_hf(raw: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, str]] = []
+    for item in raw:
+        if isinstance(item, dict):
+            out.append(
+                {
+                    "id": _as_text(item.get("id")),
+                    "cue": _as_text(item.get("cue")),
+                    "content": _as_text(item.get("content")),
+                }
+            )
+        else:
+            out.append({"id": "", "cue": "", "content": _as_text(item)})
+    return out
+
+def _sanitize_premises_for_hf(raw: Any) -> List[Dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+
+    cleaned_premises: List[Dict[str, Any]] = []
+    for premise in raw:
+        if isinstance(premise, dict):
             assumption_raw = premise.get("assumption")
             if assumption_raw is None:
                 assumption_raw = premise.get("note")
             if assumption_raw is None:
                 assumption_raw = premise.get("text_note")
-            if isinstance(assumption_raw, bool):
-                assumption = "true" if assumption_raw else "false"
-            elif assumption_raw is None:
-                assumption = ""
-            else:
-                assumption = str(assumption_raw)
+            assumption = _as_text(assumption_raw)
 
-            canonical = {
-                "id": "" if premise_id is None else str(premise_id),
-                "text": "" if premise_text is None else str(premise_text),
-                "evidence_refs": evidence_refs,
-                "assumption": assumption,
-            }
-            if canonical != premise:
-                changed = True
-            cleaned_premises.append(canonical)
+            cleaned_premises.append(
+                {
+                    "id": _as_text(premise.get("id")),
+                    "text": _as_text(premise.get("text")),
+                    "evidence_refs": _as_text_list(premise.get("evidence_refs")),
+                    "assumption": assumption,
+                }
+            )
         else:
             cleaned_premises.append(
                 {
                     "id": "",
-                    "text": "" if premise is None else str(premise),
+                    "text": _as_text(premise),
                     "evidence_refs": [],
                     "assumption": "",
                 }
             )
-            changed = True
+    return cleaned_premises
 
-    if not changed:
-        return trace
-    out = dict(trace)
-    out["premises"] = cleaned_premises
-    return out
+def _sanitize_thinking_for_hf(raw: Any) -> List[Dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
 
+    cleaned_thinking: List[Dict[str, str]] = []
+    for item in raw:
+        if isinstance(item, dict):
+            text_raw = item.get("text")
+            if text_raw is None:
+                for key in ("assumption", "text_is_assumption", "note", "content", "thought"):
+                    candidate = item.get(key)
+                    if candidate is not None and str(candidate).strip():
+                        text_raw = candidate
+                        break
+            cleaned_thinking.append({"text": _as_text(text_raw)})
+        else:
+            cleaned_thinking.append({"text": _as_text(item)})
+    return cleaned_thinking
+
+def _as_text(raw: Any) -> str:
+    if raw is None:
+        return ""
+    return str(raw)
+
+def _as_text_list(raw: Any) -> List[str]:
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        values: List[str] = []
+        for item in raw:
+            if item is None:
+                continue
+            text = str(item)
+            if text.strip():
+                values.append(text)
+        return values
+    text = str(raw)
+    return [text] if text.strip() else []
 
 def push_to_hub(
     export_dir: Path,
@@ -382,6 +627,36 @@ def push_to_hub(
     private: bool = True,
     clean_remote: bool = False,
 ) -> None:
+    """Push to hub.
+    
+    Args:
+        export_dir (Path): Path value used by this operation.
+        repo_id (str): str value used by this operation.
+        repo_type (str): str value used by this operation.
+        token (Optional[str]): Optional[str] value used by this operation.
+        commit_message (str): str value used by this operation.
+        private (bool): bool value used by this operation.
+        clean_remote (bool): Boolean flag that controls optional behavior.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        ValueError: Raised when validation or runtime requirements are not met.
+        ImportError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.hf_push import push_to_hub
+        >>> push_to_hub(...)
+    
+    """
     if not repo_id.strip():
         raise ValueError("HF repo_id is required. Set saving.hf_push.repo_id or pass --repo-id.")
 
@@ -417,7 +692,6 @@ def push_to_hub(
         else:
             raise
 
-
 def _clean_remote_repo(api: Any, repo_id: str, repo_type: str, commit_message: str) -> None:
     keep_files = {".gitattributes"}
     files = [path for path in api.list_repo_files(repo_id=repo_id, repo_type=repo_type) if path not in keep_files]
@@ -446,18 +720,15 @@ def _clean_remote_repo(api: Any, repo_id: str, repo_type: str, commit_message: s
             commit_message=f"{commit_message} (clean remote)",
         )
 
-
 def _resolve_source_dir(source_dir_override: str, cfg: Dict[str, Any], project_root: Path) -> Path:
     if source_dir_override.strip():
         return Path(source_dir_override).expanduser().resolve()
     return resolve_output_dir(cfg, project_root)
 
-
 def _resolve_export_dir(export_dir_override: str, settings: HFPushSettings) -> Path:
     if export_dir_override.strip():
         return Path(export_dir_override).expanduser().resolve()
     return settings.export_dir
-
 
 def _env_token() -> str:
     import os
@@ -466,7 +737,6 @@ def _env_token() -> str:
         (os.getenv("HF_TOKEN") or "").strip()
         or (os.getenv("HUGGINGFACE_HUB_TOKEN") or "").strip()
     )
-
 
 def _write_dataset_card(
     export_dir: Path,
@@ -559,12 +829,10 @@ def _write_dataset_card(
 
     (export_dir / "README.md").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
-
 def _collect_minimal_stats(source_dir: Path, source_file: str) -> Dict[str, int]:
     return {
         "records": _count_lines(source_dir / source_file),
     }
-
 
 def _build_dataset_stats(source_path: Path, output_columns: Dict[str, str]) -> Dict[str, Any]:
     messages_key = (output_columns.get("messages") or "messages").strip() or "messages"
@@ -689,7 +957,6 @@ def _build_dataset_stats(source_path: Path, output_columns: Dict[str, str]) -> D
         },
     }
 
-
 def _write_dataset_plots(plots_dir: Path, dataset_stats: Dict[str, Any], relative_prefix: str) -> List[str]:
     plot_specs: List[Tuple[str, str, Dict[str, int]]] = []
 
@@ -734,7 +1001,6 @@ def _write_dataset_plots(plots_dir: Path, dataset_stats: Dict[str, Any], relativ
         written_files.append(f"{prefix}/{file_name}" if prefix else file_name)
     return written_files
 
-
 def _write_bar_chart_svg(path: Path, title: str, items: List[Tuple[str, int]]) -> None:
     safe_title = _xml_escape(title)
     if not items:
@@ -776,7 +1042,6 @@ def _write_bar_chart_svg(path: Path, title: str, items: List[Tuple[str, int]]) -
     lines.append("</svg>")
     path.write_text("\n".join(lines), encoding="utf-8")
 
-
 def _iter_jsonl_rows(path: Path) -> Iterator[Dict[str, Any]]:
     if not path.exists():
         return
@@ -791,7 +1056,6 @@ def _iter_jsonl_rows(path: Path) -> Iterator[Dict[str, Any]]:
                 continue
             if isinstance(parsed, dict):
                 yield parsed
-
 
 def _extract_turn_count(metadata: Dict[str, Any], messages: List[Any], judge_payload: Dict[str, Any]) -> Optional[int]:
     n_turns_raw = metadata.get("n_turns")
@@ -816,13 +1080,11 @@ def _extract_turn_count(metadata: Dict[str, Any], messages: List[Any], judge_pay
             user_messages += 1
     return user_messages if user_messages > 0 else None
 
-
 def _count_words(text: str) -> int:
     stripped = text.strip()
     if not stripped:
         return 0
     return len(stripped.split())
-
 
 def _estimate_tokens(text: str) -> int:
     stripped = text.strip()
@@ -830,25 +1092,21 @@ def _estimate_tokens(text: str) -> int:
         return 0
     return max(1, int(math.ceil(len(stripped) / 4.0)))
 
-
 def _mean(values: List[float] | List[int]) -> Optional[float]:
     if not values:
         return None
     return float(sum(values) / len(values))
-
 
 def _round_or_none(value: Optional[float], ndigits: int = 4) -> Optional[float]:
     if value is None:
         return None
     return round(float(value), ndigits)
 
-
 def _count_distribution(values: List[int]) -> Dict[str, int]:
     if not values:
         return {}
     counter = Counter(int(value) for value in values)
     return {str(key): counter[key] for key in sorted(counter)}
-
 
 def _score_distribution(scores: List[float]) -> Dict[str, int]:
     if not scores:
@@ -859,7 +1117,6 @@ def _score_distribution(scores: List[float]) -> Dict[str, int]:
         bucket = max(0, min(10, bucket))
         counter[bucket] += 1
     return {str(key): counter[key] for key in range(0, 11) if counter[key] > 0}
-
 
 def _histogram_distribution(values: List[int], bins: int = 12) -> Dict[str, int]:
     if not values:
@@ -886,7 +1143,6 @@ def _histogram_distribution(values: List[int], bins: int = 12) -> Dict[str, int]
         counter[label] += 1
     return {label: counter[label] for label in ordered_labels if counter[label] > 0}
 
-
 def _as_float(value: Any) -> Optional[float]:
     if isinstance(value, bool):
         return None
@@ -902,7 +1158,6 @@ def _as_float(value: Any) -> Optional[float]:
             return None
     return None
 
-
 def _xml_escape(text: str) -> str:
     return (
         text.replace("&", "&amp;")
@@ -912,13 +1167,11 @@ def _xml_escape(text: str) -> str:
         .replace("'", "&apos;")
     )
 
-
 def _count_lines(path: Path) -> int:
     if not path.exists():
         return 0
     with path.open("r", encoding="utf-8") as handle:
         return sum(1 for _ in handle)
-
 
 def _infer_dataset_name(repo_id: str | None) -> str:
     if not repo_id:

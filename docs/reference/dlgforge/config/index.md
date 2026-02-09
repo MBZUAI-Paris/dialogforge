@@ -1,0 +1,3 @@
+# `dlgforge.config`
+
+::: dlgforge.config

@@ -1,3 +1,13 @@
+"""
+Test module for DialogForge behavior validation.
+
+Main flows:
+- Defines unit/integration test cases that assert expected runtime behavior.
+
+Expected usage:
+- Run with `pytest`; import helpers from production modules as needed.
+"""
+
 from __future__ import annotations
 
 import os
@@ -6,6 +16,30 @@ from dlgforge.llm.client import OpenAIModelClient
 
 
 def test_settings_with_routed_endpoint_overrides_base_url_and_api_key() -> None:
+    """
+    Test settings with routed endpoint overrides base url and api key.
+
+    Args:
+        None.
+
+    Returns:
+        None: Return value produced by `test_settings_with_routed_endpoint_overrides_base_url_and_api_key`.
+
+    Raises:
+        Exception: Propagates assertion, validation, or runtime errors from executed code paths.
+
+    Side Effects:
+        - May read/write local test artifacts, parse CLI args, or invoke runtime utilities.
+
+    Preconditions/Invariant:
+        Callers should provide values compatible with the expected schema and test/script context.
+
+    Example:
+        >>> # See `tests/test_llm_routing.py` for concrete usage of `test_settings_with_routed_endpoint_overrides_base_url_and_api_key`.
+
+    Notes/Assumptions:
+        This callable is used by pytest discovery and assertions.
+    """
     client = OpenAIModelClient()
     settings = {
         "model": "demo-model",
@@ -29,6 +63,30 @@ def test_settings_with_routed_endpoint_overrides_base_url_and_api_key() -> None:
 
 
 def test_settings_with_routed_endpoint_reads_api_key_env() -> None:
+    """
+    Test settings with routed endpoint reads api key env.
+
+    Args:
+        None.
+
+    Returns:
+        None: Return value produced by `test_settings_with_routed_endpoint_reads_api_key_env`.
+
+    Raises:
+        Exception: Propagates assertion, validation, or runtime errors from executed code paths.
+
+    Side Effects:
+        - May read/write local test artifacts, parse CLI args, or invoke runtime utilities.
+
+    Preconditions/Invariant:
+        Callers should provide values compatible with the expected schema and test/script context.
+
+    Example:
+        >>> # See `tests/test_llm_routing.py` for concrete usage of `test_settings_with_routed_endpoint_reads_api_key_env`.
+
+    Notes/Assumptions:
+        This callable is used by pytest discovery and assertions.
+    """
     client = OpenAIModelClient()
     previous = os.environ.get("TEST_ROUTING_API_KEY")
     try:

@@ -1,3 +1,7 @@
+"""Serper web-search integration helper.
+
+"""
+
 from __future__ import annotations
 
 import logging
@@ -7,11 +11,30 @@ from typing import Any, Dict, List
 
 import requests
 
-
 LOGGER = logging.getLogger("dlgforge.tools")
 
-
 class SerperWebSearchClient:
+    """Serper web search client.
+    
+    Args:
+        num_results (int): int value used by this operation.
+        timeout (int): int value used by this operation.
+        api_key (str | None): str | None value used by this operation.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.tools.web_search import SerperWebSearchClient
+        >>> SerperWebSearchClient(...)
+    
+    """
     def __init__(self, num_results: int = 5, timeout: int = 30, api_key: str | None = None) -> None:
         self.num_results = num_results
         self.timeout = timeout
@@ -19,6 +42,29 @@ class SerperWebSearchClient:
         self.session = requests.Session()
 
     def search(self, query: str) -> Dict[str, Any]:
+        """Execute a web search query.
+        
+        Args:
+            query (str): Input text.
+        
+        Returns:
+            Dict[str, Any]: Value produced by this API.
+        
+        Raises:
+            RuntimeError: Raised when validation or runtime requirements are not met.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.web_search import SerperWebSearchClient
+            >>> instance = SerperWebSearchClient(...)
+            >>> instance.search(...)
+        
+        """
         if not self.api_key:
             raise RuntimeError("SERPER_API_KEY is not set.")
 

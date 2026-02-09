@@ -1,11 +1,37 @@
+"""LLM settings resolution and agent model requirements.
+
+"""
+
 from __future__ import annotations
 
 import json
 import os
 from typing import Any, Dict, List
 
-
 def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
+    """Resolve llm settings from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        agent_key (str): str value used by this operation.
+    
+    Returns:
+        Dict[str, Any]: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.llm.settings import resolve_llm_settings
+        >>> resolve_llm_settings(...)
+    
+    """
     llm_cfg = cfg.get("llm", {}) or {}
     merged = {
         "backend": llm_cfg.get("backend"),
@@ -90,8 +116,30 @@ def resolve_llm_settings(cfg: Dict[str, Any], agent_key: str) -> Dict[str, Any]:
 
     return merged
 
-
 def resolve_agent_used_name(cfg: Dict[str, Any], agent_key: str) -> str:
+    """Resolve agent used name.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        agent_key (str): str value used by this operation.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.llm.settings import resolve_agent_used_name
+        >>> resolve_agent_used_name(...)
+    
+    """
     settings = resolve_llm_settings(cfg, agent_key)
     model = (settings.get("model") or "").strip()
     provider = (settings.get("provider") or "").strip()
@@ -101,8 +149,29 @@ def resolve_agent_used_name(cfg: Dict[str, Any], agent_key: str) -> str:
         return f"{provider}/{model}"
     return model
 
-
 def required_agents(cfg: Dict[str, Any]) -> List[str]:
+    """Return required agents.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        List[str]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.llm.settings import required_agents
+        >>> required_agents(...)
+    
+    """
     agents = ["qa_generator", "kb_responder"]
     judge_cfg = cfg.get("judge", {}) or {}
     mode = str(judge_cfg.get("mode", "offline") or "offline").strip().lower()
@@ -111,15 +180,35 @@ def required_agents(cfg: Dict[str, Any]) -> List[str]:
         agents.append("qa_judge")
     return agents
 
-
 def missing_models(cfg: Dict[str, Any]) -> List[str]:
+    """Return missing models.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        List[str]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.llm.settings import missing_models
+        >>> missing_models(...)
+    
+    """
     missing: List[str] = []
     for agent in required_agents(cfg):
         settings = resolve_llm_settings(cfg, agent)
         if not (settings.get("model") or "").strip():
             missing.append(agent)
     return missing
-
 
 def _fallback_model_from_env() -> str:
     for key in ("LLM_MODEL", "OPENAI_MODEL"):
@@ -128,7 +217,6 @@ def _fallback_model_from_env() -> str:
             return value
     return ""
 
-
 def _as_optional_int(value: Any) -> Any:
     if value in {None, ""}:
         return None
@@ -136,7 +224,6 @@ def _as_optional_int(value: Any) -> Any:
         return int(value)
     except (TypeError, ValueError):
         return None
-
 
 def _as_optional_float(value: Any) -> Any:
     if value in {None, ""}:

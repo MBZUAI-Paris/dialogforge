@@ -1,7 +1,10 @@
+"""Default configuration schema for DialogForge.
+
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict
-
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "run": {

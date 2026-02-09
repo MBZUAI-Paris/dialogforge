@@ -1,3 +1,7 @@
+"""Provisioners for attached and managed vLLM backends.
+
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -14,24 +18,188 @@ from dlgforge.distributed.types import EndpointSpec
 
 LOGGER = logging.getLogger("dlgforge.distributed")
 
-
 class VLLMProvisioner(Protocol):
-    async def start(self, cfg: Dict[str, Any]) -> List[EndpointSpec]: ...
+    """Provisioner for vllm runtime resources.
+    
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.distributed.provisioning import VLLMProvisioner
+        >>> VLLMProvisioner(...)
+    
+    """
 
-    async def stop(self) -> None: ...
+    async def start(self, cfg: Dict[str, Any]) -> List[EndpointSpec]:
+        """Start provisioned runtime resources.
+        
+        Args:
+            cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        
+        Returns:
+            List[EndpointSpec]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import VLLMProvisioner
+            >>> instance = VLLMProvisioner(...)
+            >>> instance.start(...)
+        
+        """
 
+        ...
+
+    async def stop(self) -> None:
+        """Stop provisioned runtime resources.
+        
+        
+        Returns:
+            None: No value is returned.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import VLLMProvisioner
+            >>> instance = VLLMProvisioner(...)
+            >>> instance.stop(...)
+        
+        """
+
+        ...
 
 class NoopProvisioner:
+    """Provisioner for noop runtime resources.
+    
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.distributed.provisioning import NoopProvisioner
+        >>> NoopProvisioner(...)
+    
+    """
     async def start(self, cfg: Dict[str, Any]) -> List[EndpointSpec]:
+        """Start provisioned runtime resources.
+        
+        Args:
+            cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        
+        Returns:
+            List[EndpointSpec]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import NoopProvisioner
+            >>> instance = NoopProvisioner(...)
+            >>> instance.start(...)
+        
+        """
         _ = cfg
         return []
 
     async def stop(self) -> None:
+        """Stop provisioned runtime resources.
+        
+        
+        Returns:
+            None: No value is returned.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import NoopProvisioner
+            >>> instance = NoopProvisioner(...)
+            >>> instance.stop(...)
+        
+        """
         return None
 
-
 class AttachProvisioner:
+    """Provisioner for attach runtime resources.
+    
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.distributed.provisioning import AttachProvisioner
+        >>> AttachProvisioner(...)
+    
+    """
     async def start(self, cfg: Dict[str, Any]) -> List[EndpointSpec]:
+        """Start provisioned runtime resources.
+        
+        Args:
+            cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        
+        Returns:
+            List[EndpointSpec]: Value produced by this API.
+        
+        Raises:
+            RuntimeError: Raised when validation or runtime requirements are not met.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import AttachProvisioner
+            >>> instance = AttachProvisioner(...)
+            >>> instance.start(...)
+        
+        """
         endpoints = _extract_routing_endpoints(cfg)
         if not endpoints:
             raise RuntimeError(
@@ -42,16 +210,76 @@ class AttachProvisioner:
         return endpoints
 
     async def stop(self) -> None:
+        """Stop provisioned runtime resources.
+        
+        
+        Returns:
+            None: No value is returned.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import AttachProvisioner
+            >>> instance = AttachProvisioner(...)
+            >>> instance.stop(...)
+        
+        """
         return None
 
-
 class ManagedRayVLLMProvisioner:
+    """Managed ray VLLM provisioner.
+    
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.distributed.provisioning import ManagedRayVLLMProvisioner
+        >>> ManagedRayVLLMProvisioner(...)
+    
+    """
     def __init__(self) -> None:
         self._actors: List[Any] = []
         self._endpoints: List[EndpointSpec] = []
         self._auto_stop: bool = True
 
     async def start(self, cfg: Dict[str, Any]) -> List[EndpointSpec]:
+        """Start provisioned runtime resources.
+        
+        Args:
+            cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        
+        Returns:
+            List[EndpointSpec]: Value produced by this API.
+        
+        Raises:
+            RuntimeError: Raised when validation or runtime requirements are not met.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import ManagedRayVLLMProvisioner
+            >>> instance = ManagedRayVLLMProvisioner(...)
+            >>> instance.start(...)
+        
+        """
         _ensure_vllm_available()
         vllm_cfg = (cfg.get("llm", {}) or {}).get("vllm", {}) or {}
         replicas = _as_int(vllm_cfg.get("replicas"), default=1)
@@ -128,6 +356,27 @@ class ManagedRayVLLMProvisioner:
         return list(endpoints)
 
     async def stop(self) -> None:
+        """Stop provisioned runtime resources.
+        
+        
+        Returns:
+            None: No value is returned.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.provisioning import ManagedRayVLLMProvisioner
+            >>> instance = ManagedRayVLLMProvisioner(...)
+            >>> instance.stop(...)
+        
+        """
         if not self._actors:
             return
         if not self._auto_stop:
@@ -140,7 +389,6 @@ class ManagedRayVLLMProvisioner:
         except Exception:
             pass
         self._actors = []
-
 
 def _extract_routing_endpoints(cfg: Dict[str, Any]) -> List[EndpointSpec]:
     llm_cfg = cfg.get("llm", {}) or {}
@@ -174,7 +422,6 @@ def _extract_routing_endpoints(cfg: Dict[str, Any]) -> List[EndpointSpec]:
         )
     return endpoints
 
-
 async def _validate_endpoints(endpoints: Sequence[EndpointSpec], timeout_s: float = 10.0) -> None:
     checks = [asyncio.to_thread(_check_endpoint_health, ep, timeout_s) for ep in endpoints]
     results = await asyncio.gather(*checks)
@@ -182,7 +429,6 @@ async def _validate_endpoints(endpoints: Sequence[EndpointSpec], timeout_s: floa
     if failed:
         joined = "\n".join(failed)
         raise RuntimeError(f"One or more vLLM endpoints are unhealthy:\n{joined}")
-
 
 async def _wait_for_endpoints(endpoints: Sequence[EndpointSpec], timeout_s: float = 180.0) -> None:
     started = time.time()
@@ -201,7 +447,6 @@ async def _wait_for_endpoints(endpoints: Sequence[EndpointSpec], timeout_s: floa
         f"Last errors:\n{last_error}"
     )
 
-
 def _check_endpoint_health(endpoint: EndpointSpec, timeout_s: float) -> str:
     models_url = _models_url(endpoint.base_url)
     try:
@@ -212,13 +457,11 @@ def _check_endpoint_health(endpoint: EndpointSpec, timeout_s: float) -> str:
         return f"{endpoint.name}: {models_url} -> {err}"
     return ""
 
-
 def _models_url(base_url: str) -> str:
     trimmed = base_url.rstrip("/")
     if trimmed.endswith("/v1"):
         return trimmed + "/models"
     return trimmed + "/v1/models"
-
 
 def _as_int(raw: Any, default: int) -> int:
     try:
@@ -226,7 +469,6 @@ def _as_int(raw: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return value
-
 
 def _as_bool(raw: Any, default: bool) -> bool:
     if isinstance(raw, bool):
@@ -239,7 +481,6 @@ def _as_bool(raw: Any, default: bool) -> bool:
     if text in {"0", "false", "no", "off", ""}:
         return False
     return default
-
 
 def _ensure_vllm_available() -> None:
     if shutil.which("vllm"):

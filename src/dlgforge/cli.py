@@ -1,3 +1,5 @@
+"""CLI parser and command dispatch for DialogForge."""
+
 from __future__ import annotations
 
 import argparse
@@ -6,8 +8,19 @@ from dlgforge.pipeline.hf_push import HFPushOptions, run_push
 from dlgforge.pipeline.runner import run, run_judge_only
 from dlgforge.pipeline.seed_topics_migration import run_seeds_migrate
 
-
 def build_parser() -> argparse.ArgumentParser:
+    """Build the top-level `dlgforge` argument parser.
+
+    Returns:
+        argparse.ArgumentParser: Parser configured with `run`, `judge`, `push`,
+        and `seeds-migrate` subcommands.
+
+    Examples:
+        >>> from dlgforge.cli import build_parser
+        >>> parser = build_parser()
+        >>> parser.prog
+        'dlgforge'
+    """
     parser = argparse.ArgumentParser(prog="dlgforge", description="Synthetic dialogue generator")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -85,8 +98,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
-
 def main() -> None:
+    """Parse CLI arguments and dispatch to the selected command.
+
+    The selected subcommand is executed synchronously. Failures are surfaced as
+    `SystemExit` with a command-scoped error message.
+
+    Returns:
+        None: Always returns `None` when execution completes.
+
+    Raises:
+        SystemExit: Raised for command parsing errors or command execution
+            failures.
+
+    Side Effects / I/O:
+        - Reads CLI arguments from `sys.argv`.
+        - Executes generation, judge, export, or migration workflows depending on
+          the selected command.
+
+    Examples:
+        >>> from dlgforge.cli import main
+        >>> main()
+    """
     parser = build_parser()
     args = parser.parse_args()
 

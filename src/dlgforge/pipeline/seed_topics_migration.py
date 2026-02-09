@@ -1,3 +1,5 @@
+"""Seed-topic migration utilities for legacy topic files."""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +11,6 @@ import yaml
 from dlgforge.config import load_config
 from dlgforge.utils import resolve_path, setup_logging
 
-
 LOGGER = logging.getLogger("dlgforge.pipeline")
 
 _DEFAULT_VARIANT_BY_TARGET_LANGUAGE = {
@@ -18,13 +19,41 @@ _DEFAULT_VARIANT_BY_TARGET_LANGUAGE = {
     "fr": "france",
 }
 
-
 def run_seeds_migrate(
     config_path: str,
     source_file: str = "",
     dest_file: str = "",
     overwrite: bool = False,
 ) -> Dict[str, Any]:
+    """Run seed-topic migration using project config defaults.
+
+    The command resolves source and destination paths from CLI overrides first,
+    then from config, then from repository defaults.
+
+    Args:
+        config_path (str): Path to a configuration file.
+        source_file (str): Optional source seed file override (JSON or YAML).
+        dest_file (str): Optional destination YAML path override.
+        overwrite (bool): Whether to overwrite an existing destination file.
+
+    Returns:
+        Dict[str, Any]: Migration summary with source path, destination path,
+        variant list, and topic counts.
+
+    Raises:
+        FileNotFoundError: If `config_path` or the resolved source file does not
+            exist.
+        ValueError: If the resolved source path points to a directory.
+
+    Side Effects / I/O:
+        - Reads config and source files from disk.
+        - Writes migrated YAML output to disk.
+        - Writes log entries.
+
+    Examples:
+        >>> from dlgforge.pipeline.seed_topics_migration import run_seeds_migrate
+        >>> run_seeds_migrate(...)
+    """
     config_file = Path(config_path).expanduser().resolve()
     if not config_file.exists() or not config_file.is_file():
         raise FileNotFoundError(f"Config file not found: {config_file}")
@@ -79,8 +108,32 @@ def run_seeds_migrate(
     )
     return result
 
-
 def migrate_seed_topics_file(source_file: Path, destination_file: Path, overwrite: bool = False) -> Dict[str, Any]:
+    """Convert a legacy seed-topic file into canonical YAML format.
+
+    Args:
+        source_file (Path): Legacy source file containing seed topics.
+        destination_file (Path): Output path for canonical YAML.
+        overwrite (bool): Whether to overwrite `destination_file` if it exists.
+
+    Returns:
+        Dict[str, Any]: Migration summary with written files, variants, and topic
+        counts.
+
+    Raises:
+        ValueError: If source data is not a mapping or has no valid topics.
+        FileExistsError: If destination exists and `overwrite` is `False`.
+
+    Side Effects / I/O:
+        - Reads source content from disk.
+        - Creates destination parent directories as needed.
+        - Writes canonical YAML to `destination_file`.
+
+    Examples:
+        >>> from pathlib import Path
+        >>> from dlgforge.pipeline.seed_topics_migration import migrate_seed_topics_file
+        >>> migrate_seed_topics_file(Path("seed_topics.json"), Path("data/seeds/topics.yaml"), overwrite=True)
+    """
     raw = yaml.safe_load(source_file.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("Seed topics file must be a YAML/JSON object.")
@@ -116,7 +169,6 @@ def migrate_seed_topics_file(source_file: Path, destination_file: Path, overwrit
         "files_written": [str(destination_file)],
     }
 
-
 def _split_by_variant(data: Dict[str, Any]) -> Dict[str, Dict[str, List[str]]]:
     structured = _try_extract_structured_variants(data)
     if structured:
@@ -148,7 +200,6 @@ def _split_by_variant(data: Dict[str, Any]) -> Dict[str, Dict[str, List[str]]]:
 
     return by_variant
 
-
 def _try_extract_structured_variants(data: Dict[str, Any]) -> Dict[str, Dict[str, List[str]]]:
     variants_raw = data.get("variants")
     if not isinstance(variants_raw, dict):
@@ -170,10 +221,8 @@ def _try_extract_structured_variants(data: Dict[str, Any]) -> Dict[str, Dict[str
                 by_variant.setdefault(variant, {})[topic_name] = cleaned
     return by_variant
 
-
 def _clean_questions(values: List[Any]) -> List[str]:
     return [str(value).strip() for value in values if isinstance(value, str) and str(value).strip()]
-
 
 def _default_aliases(by_variant: Dict[str, Dict[str, List[str]]]) -> Dict[str, str]:
     aliases: Dict[str, str] = {}
@@ -190,7 +239,6 @@ def _default_aliases(by_variant: Dict[str, Dict[str, List[str]]]) -> Dict[str, s
         }
     )
     return aliases
-
 
 def _resolve_source_path(raw: str, project_root: Path) -> Path:
     if not raw.strip():

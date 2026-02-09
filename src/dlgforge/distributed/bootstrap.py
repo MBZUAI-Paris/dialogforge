@@ -1,3 +1,7 @@
+"""Distributed bootstrap orchestration for generation runs.
+
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -23,14 +27,58 @@ from dlgforge.distributed.types import EndpointSpec
 
 LOGGER = logging.getLogger("dlgforge.distributed")
 
-
 class RunBootstrap:
+    """Manage distributed bootstrap lifecycle around a generation run.
+    
+    Args:
+        config_path (str | Path): Path to a configuration file.
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.distributed.bootstrap import RunBootstrap
+        >>> RunBootstrap(...)
+    
+    """
     def __init__(self, config_path: str | Path, cfg: Dict[str, Any]) -> None:
         self.config_path = str(Path(config_path).expanduser().resolve())
         self.cfg = cfg
         self._provisioner: VLLMProvisioner = NoopProvisioner()
 
     async def run(self, cfg: Dict[str, Any]) -> None:
+        """Provision runtime dependencies and execute the configured run.
+        
+        Args:
+            cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        
+        Returns:
+            None: No value is returned.
+        
+        Raises:
+            RuntimeError: Raised when validation or runtime requirements are not met.
+        
+        Side Effects / I/O:
+            - May perform network, model, or distributed runtime operations.
+            - May read environment variables or mutate process-level runtime state.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.distributed.bootstrap import RunBootstrap
+            >>> instance = RunBootstrap(...)
+            >>> instance.run(...)
+        
+        """
         _ = cfg
         distributed_cfg = ((self.cfg.get("run", {}) or {}).get("distributed", {}) or {})
         executor = str(distributed_cfg.get("executor") or "ray").strip().lower()
@@ -90,10 +138,32 @@ class RunBootstrap:
                 with _suppress():
                     ray.shutdown()
 
-
 def run_bootstrap(config_path: str | Path, cfg: Dict[str, Any]) -> None:
+    """Run bootstrap.
+    
+    Args:
+        config_path (str | Path): Path to a configuration file.
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.distributed.bootstrap import run_bootstrap
+        >>> run_bootstrap(...)
+    
+    """
     asyncio.run(RunBootstrap(config_path=config_path, cfg=cfg).run(cfg))
-
 
 def _select_provisioner(backend: str) -> VLLMProvisioner:
     if backend == "openai":
@@ -105,7 +175,6 @@ def _select_provisioner(backend: str) -> VLLMProvisioner:
     raise RuntimeError(
         f"Unknown llm.backend='{backend}'. Supported values: openai, vllm_attach, vllm_managed."
     )
-
 
 async def _initialize_postgres(cfg: Dict[str, Any]) -> None:
     store_cfg = cfg.get("store", {}) or {}
@@ -131,7 +200,6 @@ async def _initialize_postgres(cfg: Dict[str, Any]) -> None:
     finally:
         await conn.close()
 
-
 def _build_env_overrides(cfg: Dict[str, Any], backend: str, endpoints: List[EndpointSpec]) -> Dict[str, str]:
     llm_cfg = cfg.get("llm", {}) or {}
     routing_cfg = llm_cfg.get("routing", {}) if isinstance(llm_cfg.get("routing"), dict) else {}
@@ -155,13 +223,11 @@ def _build_env_overrides(cfg: Dict[str, Any], backend: str, endpoints: List[Endp
 
     return env
 
-
 def _run_local_generation(config_path: str, env_overrides: Dict[str, str]) -> None:
     from dlgforge.pipeline.runner import run
 
     with _temp_environ(env_overrides):
         run(config_path)
-
 
 @contextmanager
 def _temp_environ(overrides: Dict[str, str]):
@@ -178,7 +244,6 @@ def _temp_environ(overrides: Dict[str, str]):
             else:
                 os.environ[key] = old
 
-
 class _suppress:
     def __enter__(self) -> None:
         return None
@@ -186,13 +251,11 @@ class _suppress:
     def __exit__(self, exc_type, exc, tb) -> bool:
         return True
 
-
 def _as_int(raw: Any, default: int) -> int:
     try:
         return int(raw)
     except (TypeError, ValueError):
         return default
-
 
 def _initialize_ray_runtime(cfg: Dict[str, Any]) -> tuple[Any, bool]:
     ray = import_ray()
@@ -225,7 +288,6 @@ def _initialize_ray_runtime(cfg: Dict[str, Any]) -> tuple[Any, bool]:
         ray.init(**init_kwargs)
         return ray, True
 
-
 def _allow_local_fallback(address: str, auto_start_local: bool, err: Exception) -> bool:
     if not auto_start_local:
         return False
@@ -237,7 +299,6 @@ def _allow_local_fallback(address: str, auto_start_local: bool, err: Exception) 
         "could not find any running ray instance" in message
         or "please specify the one to connect to" in message
     )
-
 
 def _as_bool(raw: Any, default: bool) -> bool:
     if raw is None:

@@ -1,3 +1,7 @@
+"""Public exports for output I/O helpers.
+
+"""
+
 from dlgforge.io.output import (
     OutputPaths,
     append_coverage_ledger,

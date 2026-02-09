@@ -1,3 +1,7 @@
+"""Configuration loading and resolver helpers.
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -13,7 +17,6 @@ from dlgforge.config.personas import select_personas
 from dlgforge.llm.settings import resolve_agent_used_name
 from dlgforge.utils import deep_merge
 
-
 _OUTPUT_COLUMN_DEFAULTS: Dict[str, str] = {
     "messages": "messages",
     "messages_with_tools": "messages_with_tools",
@@ -26,8 +29,31 @@ _OUTPUT_COLUMN_ALIASES: Dict[str, str] = {
     "message_with_tools": "messages_with_tools",
 }
 
-
 def load_config(config_path: str | Path) -> Tuple[Dict[str, Any], Path, Path]:
+    """Load config.
+    
+    Args:
+        config_path (str | Path): Path to a configuration file.
+    
+    Returns:
+        Tuple[Dict[str, Any], Path, Path]: Loaded value parsed from upstream sources.
+    
+    Raises:
+        FileNotFoundError: Raised when validation or runtime requirements are not met.
+        ValueError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import load_config
+        >>> load_config(...)
+    
+    """
     path = Path(config_path).expanduser().resolve()
     if not path.exists():
         raise FileNotFoundError(f"Config file not found: {path}")
@@ -43,7 +69,6 @@ def load_config(config_path: str | Path) -> Tuple[Dict[str, Any], Path, Path]:
 
     project_root = path.parent.resolve()
     return cfg, path, project_root
-
 
 def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
     run_cfg = cfg.setdefault("run", {})
@@ -166,7 +191,6 @@ def _apply_env_overrides(cfg: Dict[str, Any]) -> None:
         if legacy_target_language:
             run_cfg["target_languages"] = [legacy_target_language]
 
-
 def _parse_json_env(env_name: str) -> Dict[str, Any] | None:
     raw = os.getenv(env_name)
     if raw is None or raw.strip() == "":
@@ -179,7 +203,6 @@ def _parse_json_env(env_name: str) -> Dict[str, Any] | None:
         raise ValueError(f"{env_name} must be a JSON object.")
     return parsed
 
-
 def _parse_list_env(env_name: str) -> List[str] | None:
     raw = os.getenv(env_name)
     if raw is None:
@@ -188,7 +211,6 @@ def _parse_list_env(env_name: str) -> List[str] | None:
     if not text:
         return []
     return [part.strip() for part in text.split(",") if part.strip()]
-
 
 def _parse_json_list_env(env_name: str) -> List[Any] | None:
     raw = os.getenv(env_name)
@@ -202,18 +224,62 @@ def _parse_json_list_env(env_name: str) -> List[Any] | None:
         raise ValueError(f"{env_name} must be a JSON list.")
     return parsed
 
-
 def _as_bool(raw: str) -> bool:
     return str(raw).strip().lower() not in {"0", "false", "no", "off"}
 
-
 def resolve_output_dir(cfg: Dict[str, Any], project_root: Path) -> Path:
+    """Resolve output dir from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        project_root (Path): Resolved project directory context.
+    
+    Returns:
+        Path: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_output_dir
+        >>> resolve_output_dir(...)
+    
+    """
     output_dir = (cfg.get("saving", {}) or {}).get("output_dir", "outputs")
     raw = Path(str(output_dir))
     return raw if raw.is_absolute() else (project_root / raw)
 
-
 def resolve_output_columns(cfg: Dict[str, Any]) -> Dict[str, str]:
+    """Resolve output columns from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        Dict[str, str]: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_output_columns
+        >>> resolve_output_columns(...)
+    
+    """
     configured = dict(_OUTPUT_COLUMN_DEFAULTS)
     columns_cfg = (cfg.get("saving", {}) or {}).get("output_columns", {})
     if not isinstance(columns_cfg, dict):
@@ -229,12 +295,56 @@ def resolve_output_columns(cfg: Dict[str, Any]) -> Dict[str, str]:
             configured[target_key] = value
     return configured
 
-
 def resolve_question(cfg: Dict[str, Any]) -> str:
+    """Resolve question from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_question
+        >>> resolve_question(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("seed_question", "") or "")
 
-
 def resolve_target_languages(cfg: Dict[str, Any]) -> List[str]:
+    """Resolve target languages from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        List[str]: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_target_languages
+        >>> resolve_target_languages(...)
+    
+    """
     run_cfg = cfg.get("run", {}) or {}
     raw = run_cfg.get("target_languages", [])
     if isinstance(raw, str):
@@ -256,20 +366,109 @@ def resolve_target_languages(cfg: Dict[str, Any]) -> List[str]:
         return [legacy_target_language]
     return ["en"]
 
-
 def resolve_question_seed(cfg: Dict[str, Any]) -> str:
+    """Resolve question seed from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_question_seed
+        >>> resolve_question_seed(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("question_seed", "") or "")
 
-
 def resolve_run_id(cfg: Dict[str, Any]) -> str:
+    """Resolve run id from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_run_id
+        >>> resolve_run_id(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("run_id", "") or "")
 
-
 def resolve_resume_run_id(cfg: Dict[str, Any]) -> str:
+    """Resolve resume run id.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_resume_run_id
+        >>> resolve_resume_run_id(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("resume_run_id", "") or "")
 
-
 def resolve_n_turns(cfg: Dict[str, Any], fallback: int = 1) -> int:
+    """Resolve n turns from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (int): int value used by this operation.
+    
+    Returns:
+        int: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_n_turns
+        >>> resolve_n_turns(...)
+    
+    """
     raw = (cfg.get("run", {}) or {}).get("n_turns", fallback)
     try:
         n = int(raw)
@@ -277,8 +476,31 @@ def resolve_n_turns(cfg: Dict[str, Any], fallback: int = 1) -> int:
         return fallback
     return n if n > 0 else 1
 
-
 def resolve_batch_size(cfg: Dict[str, Any], fallback: int = 1) -> int:
+    """Resolve batch size from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (int): int value used by this operation.
+    
+    Returns:
+        int: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_batch_size
+        >>> resolve_batch_size(...)
+    
+    """
     raw = (cfg.get("run", {}) or {}).get("batch_size", fallback)
     try:
         size = int(raw)
@@ -286,8 +508,31 @@ def resolve_batch_size(cfg: Dict[str, Any], fallback: int = 1) -> int:
         return fallback
     return size if size > 0 else fallback
 
-
 def resolve_total_samples(cfg: Dict[str, Any], fallback: int = 0) -> int:
+    """Resolve total samples from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (int): int value used by this operation.
+    
+    Returns:
+        int: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_total_samples
+        >>> resolve_total_samples(...)
+    
+    """
     raw = (cfg.get("run", {}) or {}).get("total_samples", fallback)
     try:
         total = int(raw)
@@ -295,13 +540,58 @@ def resolve_total_samples(cfg: Dict[str, Any], fallback: int = 0) -> int:
         return fallback
     return total if total >= 0 else fallback
 
-
 def resolve_distributed_enabled(cfg: Dict[str, Any]) -> bool:
+    """Resolve distributed enabled from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        bool: Boolean indicator describing the evaluated condition.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_distributed_enabled
+        >>> resolve_distributed_enabled(...)
+    
+    """
     distributed_cfg = ((cfg.get("run", {}) or {}).get("distributed", {}) or {})
     return bool(distributed_cfg.get("enabled", False))
 
-
 def resolve_turn_range(cfg: Dict[str, Any], fallback: int = 1) -> Tuple[int, int]:
+    """Resolve turn range from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (int): int value used by this operation.
+    
+    Returns:
+        Tuple[int, int]: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        ValueError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_turn_range
+        >>> resolve_turn_range(...)
+    
+    """
     default_turns = resolve_n_turns(cfg, fallback=fallback)
     run_cfg = cfg.get("run", {}) or {}
 
@@ -330,8 +620,31 @@ def resolve_turn_range(cfg: Dict[str, Any], fallback: int = 1) -> Tuple[int, int
         )
     return min_turns, max_turns
 
-
 def resolve_turn_count_distribution(cfg: Dict[str, Any], fallback: str = "poisson") -> str:
+    """Resolve turn count distribution.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (str): str value used by this operation.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_turn_count_distribution
+        >>> resolve_turn_count_distribution(...)
+    
+    """
     run_cfg = cfg.get("run", {}) or {}
     raw = str(run_cfg.get("turn_count_distribution", fallback) or fallback).strip().lower()
     aliases = {"exp": "exponential", "pois": "poisson"}
@@ -340,8 +653,31 @@ def resolve_turn_count_distribution(cfg: Dict[str, Any], fallback: str = "poisso
         return normalized
     return fallback
 
-
 def resolve_turn_count_mean(cfg: Dict[str, Any], fallback: float = 0.0) -> float:
+    """Resolve turn count mean.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (float): float value used by this operation.
+    
+    Returns:
+        float: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_turn_count_mean
+        >>> resolve_turn_count_mean(...)
+    
+    """
     run_cfg = cfg.get("run", {}) or {}
     raw = run_cfg.get("turn_count_mean", fallback)
     try:
@@ -352,8 +688,31 @@ def resolve_turn_count_mean(cfg: Dict[str, Any], fallback: float = 0.0) -> float
         return fallback
     return mean
 
-
 def resolve_retrieval_default_k(cfg: Dict[str, Any], fallback: int = 4) -> int:
+    """Resolve retrieval default k.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (int): int value used by this operation.
+    
+    Returns:
+        int: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_retrieval_default_k
+        >>> resolve_retrieval_default_k(...)
+    
+    """
     raw = (cfg.get("retrieval", {}) or {}).get("default_k", fallback)
     try:
         k = int(raw)
@@ -361,39 +720,194 @@ def resolve_retrieval_default_k(cfg: Dict[str, Any], fallback: int = 4) -> int:
         return fallback
     return k if k > 0 else fallback
 
-
 def resolve_seed_topics_path(cfg: Dict[str, Any]) -> str:
+    """Resolve seed topics path.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_seed_topics_path
+        >>> resolve_seed_topics_path(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("seed_topics_path", "") or "")
 
-
 def resolve_seed_topics_variant(cfg: Dict[str, Any]) -> str:
+    """Resolve seed topics variant.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_seed_topics_variant
+        >>> resolve_seed_topics_variant(...)
+    
+    """
     return str((cfg.get("run", {}) or {}).get("seed_topics_variant", "") or "")
 
-
 def resolve_seed_topics_probability(cfg: Dict[str, Any]) -> float:
+    """Resolve seed topics probability.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        float: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_seed_topics_probability
+        >>> resolve_seed_topics_probability(...)
+    
+    """
     raw = (cfg.get("run", {}) or {}).get("seed_topics_probability", 0.0)
     try:
         return float(raw)
     except (TypeError, ValueError):
         return 0.0
 
-
 def resolve_seed_topics_enabled(cfg: Dict[str, Any]) -> bool:
+    """Resolve seed topics enabled.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        bool: Boolean indicator describing the evaluated condition.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_seed_topics_enabled
+        >>> resolve_seed_topics_enabled(...)
+    
+    """
     return bool((cfg.get("run", {}) or {}).get("seed_topics_enabled", True))
 
-
 def resolve_judge_mode(cfg: Dict[str, Any]) -> str:
+    """Resolve judge mode from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_judge_mode
+        >>> resolve_judge_mode(...)
+    
+    """
     return str((cfg.get("judge", {}) or {}).get("mode", "offline") or "offline").strip().lower()
 
-
 def resolve_judge_enabled(cfg: Dict[str, Any]) -> bool:
+    """Resolve judge enabled from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        bool: Boolean indicator describing the evaluated condition.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_judge_enabled
+        >>> resolve_judge_enabled(...)
+    
+    """
     enabled = bool((cfg.get("judge", {}) or {}).get("enabled", True))
     if resolve_judge_mode(cfg) == "offline":
         return False
     return enabled
 
-
 def resolve_judge_granularity(cfg: Dict[str, Any], fallback: str = "turn") -> str:
+    """Resolve judge granularity from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        fallback (str): str value used by this operation.
+    
+    Returns:
+        str: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_judge_granularity
+        >>> resolve_judge_granularity(...)
+    
+    """
     judge_cfg = cfg.get("judge", {}) or {}
     raw = str(judge_cfg.get("granularity", fallback) or fallback).strip().lower()
     aliases = {
@@ -408,15 +922,61 @@ def resolve_judge_granularity(cfg: Dict[str, Any], fallback: str = "turn") -> st
         return normalized
     return fallback
 
-
 def resolve_judge_reasons(cfg: Dict[str, Any]) -> List[str]:
+    """Resolve judge reasons from configuration.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+    
+    Returns:
+        List[str]: Resolved value after applying defaults and normalization rules.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import resolve_judge_reasons
+        >>> resolve_judge_reasons(...)
+    
+    """
     reasons = (cfg.get("judge", {}) or {}).get("reasons", [])
     if isinstance(reasons, list):
         return [str(item) for item in reasons if str(item).strip()]
     return []
 
-
 def build_base_inputs(cfg: Dict[str, Any], project_root: Path, config_path: Path) -> Dict[str, Any]:
+    """Build base inputs.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        project_root (Path): Resolved project directory context.
+        config_path (Path): Path to a configuration file.
+    
+    Returns:
+        Dict[str, Any]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.config.loader import build_base_inputs
+        >>> build_base_inputs(...)
+    
+    """
     user_persona, assistant_persona, persona_meta = select_personas(cfg, project_root, config_path)
     user_agent_used_name = resolve_agent_used_name(cfg, "qa_generator")
     assistant_agent_used_name = resolve_agent_used_name(cfg, "kb_responder")

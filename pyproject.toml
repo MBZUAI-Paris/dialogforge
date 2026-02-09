@@ -2,9 +2,24 @@
 name = "dlgforge"
 version = "0.1.0"
 description = "a lightweight system for generating grounded synthetic multi-turn dialogues via rag, websearch, and tools"
+readme = "README.md"
+license = { file = "LICENSE" }
 authors = [{ name = "Abdelaziz Bounhar" }]
 requires-python = ">=3.10,<3.14"
+keywords = ["synthetic-data", "dialogue", "openai", "rag", "multilingual", "evaluation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
+  "litellm>=1.60.0",
   "openai>=1.40.0",
   "asyncpg>=0.30.0",
   "ray>=2.40.0",
@@ -24,6 +39,11 @@ vllm = [
 
 [project.scripts]
 dlgforge = "dlgforge.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/MBZUAI-Paris/dialogforge"
+Repository = "https://github.com/MBZUAI-Paris/dialogforge"
+Issues = "https://github.com/MBZUAI-Paris/dialogforge/issues"
 
 [build-system]
 requires = ["hatchling"]

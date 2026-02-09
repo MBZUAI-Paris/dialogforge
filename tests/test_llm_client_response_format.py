@@ -1,3 +1,13 @@
+"""
+Test module for DialogForge behavior validation.
+
+Main flows:
+- Defines unit/integration test cases that assert expected runtime behavior.
+
+Expected usage:
+- Run with `pytest`; import helpers from production modules as needed.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -78,6 +88,30 @@ class _DummyClient:
 
 
 def test_complete_falls_back_to_text_response_format_for_lmstudio_style_error() -> None:
+    """
+    Test complete falls back to text response format for lmstudio style error.
+
+    Args:
+        None.
+
+    Returns:
+        None: Return value produced by `test_complete_falls_back_to_text_response_format_for_lmstudio_style_error`.
+
+    Raises:
+        Exception: Propagates assertion, validation, or runtime errors from executed code paths.
+
+    Side Effects:
+        - May read/write local test artifacts, parse CLI args, or invoke runtime utilities.
+
+    Preconditions/Invariant:
+        Callers should provide values compatible with the expected schema and test/script context.
+
+    Example:
+        >>> # See `tests/test_llm_client_response_format.py` for concrete usage of `test_complete_falls_back_to_text_response_format_for_lmstudio_style_error`.
+
+    Notes/Assumptions:
+        This callable is used by pytest discovery and assertions.
+    """
     client = OpenAIModelClient()
     settings = {"model": "openai/gpt-oss-20b", "base_url": "http://localhost:1234/v1", "api_key": "EMPTY"}
     message = {"role": "user", "content": "hello"}
@@ -103,6 +137,30 @@ def test_complete_falls_back_to_text_response_format_for_lmstudio_style_error() 
 
 
 def test_acomplete_falls_back_to_text_response_format_for_lmstudio_style_error() -> None:
+    """
+    Test acomplete falls back to text response format for lmstudio style error.
+
+    Args:
+        None.
+
+    Returns:
+        None: Return value produced by `test_acomplete_falls_back_to_text_response_format_for_lmstudio_style_error`.
+
+    Raises:
+        Exception: Propagates assertion, validation, or runtime errors from executed code paths.
+
+    Side Effects:
+        - May read/write local test artifacts, parse CLI args, or invoke runtime utilities.
+
+    Preconditions/Invariant:
+        Callers should provide values compatible with the expected schema and test/script context.
+
+    Example:
+        >>> # See `tests/test_llm_client_response_format.py` for concrete usage of `test_acomplete_falls_back_to_text_response_format_for_lmstudio_style_error`.
+
+    Notes/Assumptions:
+        This callable is used by pytest discovery and assertions.
+    """
     client = OpenAIModelClient()
     settings = {"model": "openai/gpt-oss-20b", "base_url": "http://localhost:1234/v1", "api_key": "EMPTY"}
     message = {"role": "user", "content": "hello"}
@@ -131,6 +189,30 @@ def test_acomplete_falls_back_to_text_response_format_for_lmstudio_style_error()
 
 
 def test_complete_does_not_retry_for_non_response_format_errors() -> None:
+    """
+    Test complete does not retry for non response format errors.
+
+    Args:
+        None.
+
+    Returns:
+        None: Return value produced by `test_complete_does_not_retry_for_non_response_format_errors`.
+
+    Raises:
+        Exception: Propagates assertion, validation, or runtime errors from executed code paths.
+
+    Side Effects:
+        - May read/write local test artifacts, parse CLI args, or invoke runtime utilities.
+
+    Preconditions/Invariant:
+        Callers should provide values compatible with the expected schema and test/script context.
+
+    Example:
+        >>> # See `tests/test_llm_client_response_format.py` for concrete usage of `test_complete_does_not_retry_for_non_response_format_errors`.
+
+    Notes/Assumptions:
+        This callable is used by pytest discovery and assertions.
+    """
     client = OpenAIModelClient()
     settings = {"model": "openai/gpt-oss-20b", "base_url": "http://localhost:1234/v1", "api_key": "EMPTY"}
     message = {"role": "user", "content": "hello"}

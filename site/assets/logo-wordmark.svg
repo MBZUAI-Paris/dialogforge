@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 240" role="img" aria-labelledby="title desc">
+  <title id="title">DialogForge Logo</title>
+  <desc id="desc">DialogForge wordmark with a chat-bubble icon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2f6bff" />
+      <stop offset="100%" stop-color="#00b4d8" />
+    </linearGradient>
+  </defs>
+  <rect x="20" y="20" width="200" height="200" rx="46" fill="url(#bg)" />
+  <g stroke="#ffffff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <rect x="54" y="74" width="92" height="66" rx="18" />
+    <path d="M84 140 75 160 96 147" />
+    <rect x="102" y="108" width="84" height="60" rx="16" />
+    <path d="M154 168 171 181 166 163" />
+  </g>
+  <path d="M171 60 178 73 191 80 178 87 171 100 164 87 151 80 164 73Z" fill="#ffffff" />
+  <text x="260" y="126" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="78" font-weight="700" fill="#0f172a">
+    DialogForge
+  </text>
+  <text x="263" y="172" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="28" fill="#475569">
+    Synthetic dialogue generation
+  </text>
+</svg>

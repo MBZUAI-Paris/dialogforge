@@ -1,0 +1,9 @@
+{
+  "source_jsonl": "outputs_local/conversations_sharegpt_judged.jsonl",
+  "records_available": 2,
+  "records_exported": 2,
+  "selection": "head",
+  "sample_size": 128,
+  "repo_id": "MBZUAI-Paris/dialogforge-sample",
+  "export_dir": "release_assets/sample_dataset/hf_export"
+}

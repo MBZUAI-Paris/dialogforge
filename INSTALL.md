@@ -1,15 +1,6 @@
 # Installation
 
-Use the canonical runbook in `README.md` for the full step-by-step flow:
-- environment setup
-- configuration
-- generation
-- online judge verification
-- async batch and dedup behavior
-- troubleshooting
-
-Quick install summary:
-
+## Standard install
 ```bash
 uv venv
 source .venv/bin/activate
@@ -17,10 +8,22 @@ uv pip install -e .
 cp .env.example .env
 ```
 
-Then continue with:
-
+Optional managed vLLM extra (Linux):
 ```bash
-dlgforge run config.yaml
+python -m pip install -e ".[vllm]"
 ```
 
-For full operational guidance, read `README.md`.
+## CLI smoke checks
+```bash
+uv run env PYTHONPATH=src python -m dlgforge --help
+uv run env PYTHONPATH=src python -m dlgforge push --help
+```
+
+## Test baseline
+```bash
+uv run env PYTHONPATH=src pytest -q
+```
+
+## Next steps
+- Read the [documentation hub](docs/README.md).
+- Start with `dlgforge run config.yaml`.

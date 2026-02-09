@@ -1,10 +1,13 @@
+"""Structured logging setup helpers.
+
+"""
+
 from __future__ import annotations
 
 import logging
 from contextlib import suppress
 from pathlib import Path
 from typing import Dict
-
 
 _LOGGER_FILES: Dict[str, str] = {
     "dlgforge.retrieval": "retrieval.log",
@@ -13,8 +16,30 @@ _LOGGER_FILES: Dict[str, str] = {
     "dlgforge.judge": "judge.log",
 }
 
-
 def setup_logging(logs_dir: Path, level: int = logging.INFO) -> None:
+    """Setup logging.
+    
+    Args:
+        logs_dir (Path): Path value used by this operation.
+        level (int): int value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read environment variables or mutate process-level runtime state.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.utils.logging import setup_logging
+        >>> setup_logging(...)
+    
+    """
     logs_dir.mkdir(parents=True, exist_ok=True)
 
     root = logging.getLogger("dlgforge")
@@ -49,7 +74,6 @@ def setup_logging(logs_dir: Path, level: int = logging.INFO) -> None:
 
     root._dlgforge_logs_dir = str(logs_dir)  # type: ignore[attr-defined]
     root._dlgforge_logs_level = level  # type: ignore[attr-defined]
-
 
 def _close_handlers(logger: logging.Logger) -> None:
     for handler in list(logger.handlers):

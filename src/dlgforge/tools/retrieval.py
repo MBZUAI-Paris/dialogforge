@@ -1,3 +1,7 @@
+"""Knowledge retrieval and vector-store utilities.
+
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -14,9 +18,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 from pypdf import PdfReader
 
-
 LOGGER = logging.getLogger("dlgforge.retrieval")
-
 
 def _default_device() -> Optional[str]:
     with suppress(ImportError):
@@ -25,7 +27,6 @@ def _default_device() -> Optional[str]:
         if torch.cuda.is_available():
             return "cuda"
     return None
-
 
 def _as_bool(value: Any, default: bool = False) -> bool:
     if isinstance(value, bool):
@@ -41,9 +42,33 @@ def _as_bool(value: Any, default: bool = False) -> bool:
         return False
     return default
 
-
 class KnowledgeVectorStore:
-    """Loads the knowledge directory into a Chroma collection."""
+    """Vector-store wrapper for indexing and retrieving knowledge passages.
+    
+    Args:
+        knowledge_dir (Path): Path value used by this operation.
+        collection_name (str): str value used by this operation.
+        chunk_size (int): int value used by this operation.
+        overlap (int): int value used by this operation.
+        embedding_model_name (Optional[str]): Optional[str] value used by this operation.
+        persist_dir (Optional[Path]): Optional[Path] value used by this operation.
+        rebuild_index (bool): bool value used by this operation.
+        skip_if_unchanged (bool): bool value used by this operation.
+    
+    Raises:
+        Exception: Construction may raise when required dependencies or inputs are invalid.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Instantiate and use through documented public methods.
+    
+    Examples:
+        >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+        >>> KnowledgeVectorStore(...)
+    
+    """
 
     def __init__(
         self,
@@ -288,12 +313,60 @@ class KnowledgeVectorStore:
         return False
 
     def similarity_search(self, query: str, k: int) -> List[Tuple[str, Dict[str, Any]]]:
+        """Similarity search.
+        
+        Args:
+            query (str): Input text.
+            k (int): Numeric control value for processing behavior.
+        
+        Returns:
+            List[Tuple[str, Dict[str, Any]]]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.similarity_search(...)
+        
+        """
         results = self.collection.query(query_texts=[query], n_results=k)
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
         return list(zip(documents, metadatas))
 
     def similarity_search_with_ids(self, query: str, k: int) -> List[Tuple[str, Dict[str, Any], str]]:
+        """Similarity search with ids.
+        
+        Args:
+            query (str): Input text.
+            k (int): Numeric control value for processing behavior.
+        
+        Returns:
+            List[Tuple[str, Dict[str, Any], str]]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.similarity_search_with_ids(...)
+        
+        """
         results = self.collection.query(query_texts=[query], n_results=k)
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
@@ -301,10 +374,52 @@ class KnowledgeVectorStore:
         return list(zip(documents, metadatas, ids))
 
     def list_sources(self) -> List[str]:
+        """List sources.
+        
+        
+        Returns:
+            List[str]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.list_sources(...)
+        
+        """
         sources = {item["metadata"].get("source") for item in self._chunk_inventory}
         return sorted([source for source in sources if source])
 
     def source_chunk_counts(self) -> Dict[str, int]:
+        """Source chunk counts.
+        
+        
+        Returns:
+            Dict[str, int]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.source_chunk_counts(...)
+        
+        """
         counts: Dict[str, int] = {}
         for item in self._chunk_inventory:
             source = item["metadata"].get("source")
@@ -319,6 +434,31 @@ class KnowledgeVectorStore:
         exclude_ids: Optional[set[str]] = None,
         rng: Optional[random.Random] = None,
     ) -> List[Tuple[str, Dict[str, Any], str]]:
+        """Random samples.
+        
+        Args:
+            n (int): Numeric control value for processing behavior.
+            exclude_ids (Optional[set[str]]): Optional[set[str]] value used by this operation.
+            rng (Optional[random.Random]): Optional[random.Random] value used by this operation.
+        
+        Returns:
+            List[Tuple[str, Dict[str, Any], str]]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.random_samples(...)
+        
+        """
         if not self._chunk_inventory:
             return []
         exclude_ids = exclude_ids or set()
@@ -337,6 +477,32 @@ class KnowledgeVectorStore:
         exclude_ids: Optional[set[str]] = None,
         rng: Optional[random.Random] = None,
     ) -> List[Tuple[str, Dict[str, Any], str]]:
+        """Sample by sources.
+        
+        Args:
+            sources (set[str]): set[str] value used by this operation.
+            n (int): Numeric control value for processing behavior.
+            exclude_ids (Optional[set[str]]): Optional[set[str]] value used by this operation.
+            rng (Optional[random.Random]): Optional[random.Random] value used by this operation.
+        
+        Returns:
+            List[Tuple[str, Dict[str, Any], str]]: Value produced by this API.
+        
+        Raises:
+            Exception: Propagates unexpected runtime errors from downstream calls.
+        
+        Side Effects / I/O:
+            - May read from or write to local filesystem artifacts.
+        
+        Preconditions / Invariants:
+            - Callers should provide arguments matching annotated types and expected data contracts.
+        
+        Examples:
+            >>> from dlgforge.tools.retrieval import KnowledgeVectorStore
+            >>> instance = KnowledgeVectorStore(...)
+            >>> instance.sample_by_sources(...)
+        
+        """
         if not self._chunk_inventory or not sources:
             return []
         exclude_ids = exclude_ids or set()
@@ -351,7 +517,6 @@ class KnowledgeVectorStore:
         rng.shuffle(pool)
         selected = pool[:n]
         return [(item["text"], item["metadata"], item["id"]) for item in selected]
-
 
 def _build_embedding_function(model_name: str):
     device = _default_device() or "cpu"
@@ -390,7 +555,6 @@ def _build_embedding_function(model_name: str):
         local_files_only=True,
     )
 
-
 def _choose_best_text(primary: str, secondary: str) -> str:
     primary_score = _text_quality_score(primary)
     secondary_score = _text_quality_score(secondary)
@@ -398,20 +562,40 @@ def _choose_best_text(primary: str, secondary: str) -> str:
         return primary if len(primary) >= len(secondary) else secondary
     return primary if primary_score > secondary_score else secondary
 
-
 def _text_quality_score(text: str) -> float:
     if not text:
         return 0.0
     letters = sum(1 for ch in text if ch.isalpha())
     return letters / max(len(text), 1)
 
-
 _RUNTIME_OPTIONS: Dict[str, Any] = {}
 _CACHED_STORE: Optional[KnowledgeVectorStore] = None
 _CACHED_FINGERPRINT: Optional[str] = None
 
-
 def configure_retrieval(cfg: Dict[str, Any], project_root: Path) -> None:
+    """Configure retrieval.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        project_root (Path): Resolved project directory context.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.tools.retrieval import configure_retrieval
+        >>> configure_retrieval(...)
+    
+    """
     global _RUNTIME_OPTIONS
 
     retrieval_cfg = cfg.get("retrieval", {}) or {}
@@ -446,7 +630,6 @@ def configure_retrieval(cfg: Dict[str, Any], project_root: Path) -> None:
         "reranker_batch_size": int(models_cfg.get("reranker_batch_size", 16) or 16),
     }
 
-
 def _options_fingerprint() -> str:
     payload = {
         key: (str(value) if isinstance(value, Path) else value)
@@ -455,8 +638,27 @@ def _options_fingerprint() -> str:
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
-
 def get_vector_store() -> KnowledgeVectorStore:
+    """Get vector store.
+    
+    
+    Returns:
+        KnowledgeVectorStore: Value produced by this API.
+    
+    Raises:
+        RuntimeError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.tools.retrieval import get_vector_store
+        >>> get_vector_store(...)
+    
+    """
     global _CACHED_STORE, _CACHED_FINGERPRINT
 
     if not _RUNTIME_OPTIONS:
@@ -479,8 +681,31 @@ def get_vector_store() -> KnowledgeVectorStore:
     _CACHED_FINGERPRINT = fingerprint
     return _CACHED_STORE
 
-
 def vector_db_search(query: str, k: Optional[int] = None, use_reranker: bool = False) -> Dict[str, Any]:
+    """Vector db search.
+    
+    Args:
+        query (str): Input text.
+        k (Optional[int]): Numeric control value for processing behavior.
+        use_reranker (bool): bool value used by this operation.
+    
+    Returns:
+        Dict[str, Any]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.tools.retrieval import vector_db_search
+        >>> vector_db_search(...)
+    
+    """
     search_start = time.perf_counter()
     store = get_vector_store()
     default_k = int(_RUNTIME_OPTIONS.get("default_k", 4) or 4)
@@ -508,7 +733,6 @@ def vector_db_search(query: str, k: Optional[int] = None, use_reranker: bool = F
         "results": records,
         "rendered": rendered or "Knowledge base is empty or no relevant passages were found.",
     }
-
 
 def _rerank_passages(store: KnowledgeVectorStore, query: str, k_final: int) -> List[Tuple[str, Dict[str, Any]]]:
     rerank_model = str(_RUNTIME_OPTIONS.get("reranker_model") or "")

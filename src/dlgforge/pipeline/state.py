@@ -1,3 +1,7 @@
+"""Run-state initialization and checkpoint helpers.
+
+"""
+
 from __future__ import annotations
 
 import logging
@@ -9,8 +13,31 @@ from dlgforge.io.output import OutputPaths, load_run_state, save_run_state
 
 LOGGER = logging.getLogger("dlgforge.pipeline")
 
-
 def init_run_state(paths: OutputPaths, base_inputs: Dict[str, Any], n_turns: int) -> Tuple[str, Dict[str, Any]]:
+    """Initialize run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        n_turns (int): Numeric control value for processing behavior.
+    
+    Returns:
+        Tuple[str, Dict[str, Any]]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import init_run_state
+        >>> init_run_state(...)
+    
+    """
     _ = n_turns
     resume_id = (base_inputs.get("resume_run_id") or "").strip()
     if resume_id:
@@ -22,7 +49,6 @@ def init_run_state(paths: OutputPaths, base_inputs: Dict[str, Any], n_turns: int
     run_id = (base_inputs.get("run_id") or "").strip() or uuid.uuid4().hex
     return run_id, {}
 
-
 def checkpoint_run_state(
     paths: OutputPaths,
     run_id: str,
@@ -32,6 +58,34 @@ def checkpoint_run_state(
     turns: List[Dict[str, Any]],
     raw_results: List[Dict[str, Any]],
 ) -> None:
+    """Checkpoint run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        run_id (str): Identifier for run state tracking.
+        status (str): str value used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        n_turns (int): Numeric control value for processing behavior.
+        turns (List[Dict[str, Any]]): Conversation or message data used during processing.
+        raw_results (List[Dict[str, Any]]): Conversation or message data used during processing.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import checkpoint_run_state
+        >>> checkpoint_run_state(...)
+    
+    """
     payload = {
         "run_id": run_id,
         "status": status,
@@ -43,18 +97,64 @@ def checkpoint_run_state(
     }
     save_run_state(paths, run_id, payload)
 
-
 def init_batched_run_state(
     paths: OutputPaths,
     base_inputs: Dict[str, Any],
     n_turns: int,
     batch_size: int,
 ) -> Tuple[str, Dict[str, Any]]:
+    """Initialize batched run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        n_turns (int): Numeric control value for processing behavior.
+        batch_size (int): Numeric control value for processing behavior.
+    
+    Returns:
+        Tuple[str, Dict[str, Any]]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import init_batched_run_state
+        >>> init_batched_run_state(...)
+    
+    """
     _ = batch_size
     return init_run_state(paths, base_inputs, n_turns)
 
-
 def build_initial_batched_conversations(run_id: str, target_turns: List[int]) -> List[Dict[str, Any]]:
+    """Build initial batched conversations.
+    
+    Args:
+        run_id (str): Identifier for run state tracking.
+        target_turns (List[int]): List[int] value used by this operation.
+    
+    Returns:
+        List[Dict[str, Any]]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import build_initial_batched_conversations
+        >>> build_initial_batched_conversations(...)
+    
+    """
     conversations: List[Dict[str, Any]] = []
     for index, target in enumerate(target_turns):
         try:
@@ -77,12 +177,35 @@ def build_initial_batched_conversations(run_id: str, target_turns: List[int]) ->
         )
     return conversations
 
-
 def load_batched_conversations_from_state(
     run_id: str,
     state: Dict[str, Any],
     target_turns: List[int],
 ) -> List[Dict[str, Any]]:
+    """Load batched conversations from state.
+    
+    Args:
+        run_id (str): Identifier for run state tracking.
+        state (Dict[str, Any]): Dict[str, Any] value used by this operation.
+        target_turns (List[int]): List[int] value used by this operation.
+    
+    Returns:
+        List[Dict[str, Any]]: Loaded value parsed from upstream sources.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import load_batched_conversations_from_state
+        >>> load_batched_conversations_from_state(...)
+    
+    """
     conversations_raw = state.get("conversations")
     batch_size = len(target_turns)
     if not isinstance(conversations_raw, list):
@@ -124,7 +247,6 @@ def load_batched_conversations_from_state(
         )
     return conversations
 
-
 def checkpoint_batched_run_state(
     paths: OutputPaths,
     run_id: str,
@@ -134,6 +256,34 @@ def checkpoint_batched_run_state(
     batch_size: int,
     conversations: List[Dict[str, Any]],
 ) -> None:
+    """Checkpoint batched run state.
+    
+    Args:
+        paths (OutputPaths): Filesystem path used by this operation.
+        run_id (str): Identifier for run state tracking.
+        status (str): str value used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        n_turns (int): Numeric control value for processing behavior.
+        batch_size (int): Numeric control value for processing behavior.
+        conversations (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May read from or write to local filesystem artifacts.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.state import checkpoint_batched_run_state
+        >>> checkpoint_batched_run_state(...)
+    
+    """
     payload = {
         "run_id": run_id,
         "status": status,

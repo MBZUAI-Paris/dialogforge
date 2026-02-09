@@ -2,8 +2,11 @@
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+.mypy_cache/
 
 # Local env
+.dlgforge/
 .venv/
 .env
 src/dlgforge/.env
@@ -13,6 +16,11 @@ outputs*/
 knowledge/
 knowledge_index/
 logs/
+
+# Packaging artifacts
+build/
+dist/
+*.egg-info/
 
 # macOS
 .DS_Store

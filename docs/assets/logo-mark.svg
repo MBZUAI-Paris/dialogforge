@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">DialogForge Logo Mark</title>
+  <desc id="desc">Two chat bubbles with a spark, representing forged dialogue.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2f6bff" />
+      <stop offset="100%" stop-color="#00b4d8" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#bg)" />
+  <g stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <rect x="54" y="74" width="104" height="74" rx="20" />
+    <path d="M90 148 79 173 106 157" />
+    <rect x="108" y="112" width="94" height="68" rx="18" />
+    <path d="M167 180 188 196 181 173" />
+  </g>
+  <path d="M188 58 196 74 212 82 196 90 188 106 180 90 164 82 180 74Z" fill="#ffffff" />
+</svg>

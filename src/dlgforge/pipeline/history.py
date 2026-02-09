@@ -1,9 +1,34 @@
+"""Conversation history formatting helpers.
+
+"""
+
 from __future__ import annotations
 
 from typing import Any, Dict, List
 
-
 def format_history(history: List[Dict[str, Any]]) -> str:
+    """Format history.
+    
+    Args:
+        history (List[Dict[str, Any]]): Conversation or message data used during processing.
+    
+    Returns:
+        str: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.history import format_history
+        >>> format_history(...)
+    
+    """
     if not history:
         return "No prior turns."
     lines: List[str] = []
@@ -14,8 +39,29 @@ def format_history(history: List[Dict[str, Any]]) -> str:
         lines.append(f"Turn {turn} - {role}: {message}")
     return "\n".join(lines)
 
-
 def build_conversation_history(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Build conversation history.
+    
+    Args:
+        turns (List[Dict[str, Any]]): Conversation or message data used during processing.
+    
+    Returns:
+        List[Dict[str, Any]]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.history import build_conversation_history
+        >>> build_conversation_history(...)
+    
+    """
     history: List[Dict[str, Any]] = []
     for turn in turns:
         turn_index = turn.get("turn_index")
@@ -49,8 +95,29 @@ def build_conversation_history(turns: List[Dict[str, Any]]) -> List[Dict[str, An
             )
     return history
 
-
 def build_public_history(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Build public history.
+    
+    Args:
+        turns (List[Dict[str, Any]]): Conversation or message data used during processing.
+    
+    Returns:
+        List[Dict[str, Any]]: Constructed value derived from the provided inputs.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.history import build_public_history
+        >>> build_public_history(...)
+    
+    """
     history: List[Dict[str, Any]] = []
     for turn in turns:
         turn_index = turn.get("turn_index")
@@ -80,8 +147,30 @@ def build_public_history(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             )
     return history
 
-
 def messages_up_to_turn(messages: List[Dict[str, Any]], turn_index: int | None) -> List[Dict[str, Any]]:
+    """Messages up to turn.
+    
+    Args:
+        messages (List[Dict[str, Any]]): Conversation or message data used during processing.
+        turn_index (int | None): Numeric control value for processing behavior.
+    
+    Returns:
+        List[Dict[str, Any]]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - Primarily performs in-memory transformations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.history import messages_up_to_turn
+        >>> messages_up_to_turn(...)
+    
+    """
     if turn_index is None:
         return messages
     return [entry for entry in messages if entry.get("turn_index") and entry["turn_index"] <= turn_index]

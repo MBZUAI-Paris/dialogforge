@@ -1,3 +1,7 @@
+"""Main generation and judge orchestration flows.
+
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -38,7 +42,7 @@ from dlgforge.io import (
     load_coverage_ledger,
     save_training_sample,
 )
-from dlgforge.llm import OpenAIModelClient, missing_models, required_agents, resolve_llm_settings
+from dlgforge.llm import OpenAIModelClient, missing_models, resolve_llm_settings
 from dlgforge.pipeline.history import build_conversation_history, build_public_history, format_history
 from dlgforge.pipeline.dedup import RunQuestionRegistry
 from dlgforge.pipeline.hf_push import maybe_auto_push_after_run
@@ -66,14 +70,34 @@ from dlgforge.pipeline.state import (
 from dlgforge.tools import SerperWebSearchClient, configure_retrieval, vector_db_search
 from dlgforge.utils import env_int, load_dotenv_files, parse_json_object, setup_logging
 
-
 LOGGER = logging.getLogger("dlgforge.pipeline")
 RETRIEVAL_LOGGER = logging.getLogger("dlgforge.retrieval")
 JUDGE_LOGGER = logging.getLogger("dlgforge.judge")
 TOOLS_LOGGER = logging.getLogger("dlgforge.tools")
 
-
 def run(config_path: str) -> None:
+    """Run synthetic conversation generation from a config file.
+    
+    Args:
+        config_path (str): Path to a configuration file.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        FileNotFoundError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import run
+        >>> run(...)
+    
+    """
     config_file = Path(config_path).expanduser().resolve()
     if not config_file.exists() or not config_file.is_file():
         raise FileNotFoundError(f"Config file not found: {config_file}")
@@ -166,8 +190,30 @@ def run(config_path: str) -> None:
     )
     maybe_auto_push_after_run(cfg, output_paths)
 
-
 def run_judge_only(config_path: str) -> None:
+    """Run judge evaluation on existing conversation artifacts.
+    
+    Args:
+        config_path (str): Path to a configuration file.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        FileNotFoundError: Raised when validation or runtime requirements are not met.
+        RuntimeError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import run_judge_only
+        >>> run_judge_only(...)
+    
+    """
     config_file = Path(config_path).expanduser().resolve()
     if not config_file.exists() or not config_file.is_file():
         raise FileNotFoundError(f"Config file not found: {config_file}")
@@ -274,14 +320,12 @@ def run_judge_only(config_path: str) -> None:
         f"output={judged_output}"
     )
 
-
 def _read_json_dict(path: Path) -> Dict[str, Any]:
     try:
         parsed = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
     return parsed if isinstance(parsed, dict) else {}
-
 
 def _judge_existing_turns(
     cfg: Dict[str, Any],
@@ -321,21 +365,17 @@ def _judge_existing_turns(
 
     return judged_turns
 
-
 def _resolve_judge_reasons(cfg: Dict[str, Any]) -> List[str]:
     reasons = (cfg.get("judge", {}) or {}).get("reasons", [])
     if not isinstance(reasons, list):
         return []
     return [str(item) for item in reasons if str(item).strip()]
 
-
 def _resolve_judge_granularity(cfg: Dict[str, Any]) -> str:
     return resolve_judge_granularity(cfg)
 
-
 def _judge_per_turn_enabled(cfg: Dict[str, Any]) -> bool:
     return resolve_judge_enabled(cfg) and _resolve_judge_granularity(cfg) == "turn"
-
 
 def _preflight_judge_only(cfg: Dict[str, Any], config_path: Path) -> None:
     if not config_path.exists():
@@ -350,14 +390,6 @@ def _preflight_judge_only(cfg: Dict[str, Any], config_path: Path) -> None:
         raise RuntimeError(
             "Missing qa_judge model. Set `llm.agents.qa_judge.model`, `llm.model`, `LLM_MODEL`, or `OPENAI_MODEL`."
         )
-
-    base_url = (settings.get("base_url") or "").strip()
-    api_key = (settings.get("api_key") or "").strip()
-    if not api_key and not base_url:
-        raise RuntimeError(
-            "Missing qa_judge API key. Set OPENAI_API_KEY (or LLM_QA_JUDGE_API_KEY) in .env."
-        )
-
 
 def _preflight_checks(cfg: Dict[str, Any], config_path: Path, project_root: Path) -> None:
     if not config_path.exists():
@@ -381,16 +413,6 @@ def _preflight_checks(cfg: Dict[str, Any], config_path: Path, project_root: Path
             f"{joined}. Set per-agent model in config, or set llm.model, or LLM_MODEL, or OPENAI_MODEL in .env."
         )
 
-    for agent in required_agents(cfg):
-        settings = resolve_llm_settings(cfg, agent)
-        model = (settings.get("model") or "").strip()
-        base_url = (settings.get("base_url") or "").strip()
-        api_key = (settings.get("api_key") or "").strip()
-        if model and not api_key and not base_url:
-            raise RuntimeError(
-                f"Missing API key for agent '{agent}'. Set OPENAI_API_KEY (or LLM_{agent.upper()}_API_KEY) in .env."
-            )
-
     tools_cfg = cfg.get("tools", {}) or {}
     web_enabled = bool(tools_cfg.get("web_search_enabled", True))
     if web_enabled and not (os.getenv("SERPER_API_KEY") or "").strip():
@@ -399,14 +421,12 @@ def _preflight_checks(cfg: Dict[str, Any], config_path: Path, project_root: Path
             "run continues unless web_search is called."
         )
 
-
 def _apply_runtime_env(cfg: Dict[str, Any]) -> None:
     coverage_cfg = cfg.get("coverage", {}) or {}
     os.environ.setdefault("DOC_COVERAGE_MODE", str(coverage_cfg.get("doc_coverage_mode", "balanced")))
     os.environ.setdefault("DOC_COVERAGE_EPSILON", str(coverage_cfg.get("doc_coverage_epsilon", 0.15)))
     os.environ.setdefault("DOC_COVERAGE_FRACTION", str(coverage_cfg.get("doc_coverage_fraction", 0.2)))
     os.environ.setdefault("QUESTION_DEDUP_RETRIES", str(coverage_cfg.get("question_dedup_retries", 3)))
-
 
 def _sanitize_language_tag(language: str) -> str:
     text = str(language or "").strip().lower()
@@ -418,12 +438,10 @@ def _sanitize_language_tag(language: str) -> str:
         token = token.replace("--", "-")
     return token or "lang"
 
-
 def _resolve_total_samples_target(total_samples_cfg: int, batch_size: int) -> int:
     if total_samples_cfg > 0:
         return total_samples_cfg
     return batch_size if batch_size > 1 else 1
-
 
 def _sample_turn_count(
     min_turns: int,
@@ -457,7 +475,6 @@ def _sample_turn_count(
         return high
     return sampled
 
-
 def _sample_turn_targets(
     batch_size: int,
     min_turns: int,
@@ -469,7 +486,6 @@ def _sample_turn_targets(
         _sample_turn_count(min_turns, max_turns, distribution=distribution, mean=mean)
         for _ in range(max(batch_size, 0))
     ]
-
 
 def _sample_poisson(mean: float) -> int:
     lam = max(float(mean), 1e-6)
@@ -485,12 +501,10 @@ def _sample_poisson(mean: float) -> int:
     # Normal approximation for large lambda to avoid long multiplicative loops.
     return max(0, int(round(random.gauss(lam, math.sqrt(lam)))))
 
-
 def _sample_exponential(mean: float) -> int:
     scale = max(float(mean), 1e-6)
     value = random.expovariate(1.0 / scale)
     return max(0, int(round(value)))
-
 
 def _slot_target_n_turns(slot: Dict[str, Any], fallback: int = 1) -> int:
     raw = slot.get("target_n_turns", fallback)
@@ -502,7 +516,6 @@ def _slot_target_n_turns(slot: Dict[str, Any], fallback: int = 1) -> int:
         return fallback if fallback > 0 else 1
     return value
 
-
 def _with_sampled_persona(inputs: Dict[str, Any], persona_sampler: UniformPersonaSampler) -> Dict[str, Any]:
     sampled_inputs = dict(inputs)
     user_persona, assistant_persona, persona_meta = persona_sampler.sample()
@@ -511,7 +524,6 @@ def _with_sampled_persona(inputs: Dict[str, Any], persona_sampler: UniformPerson
     sampled_inputs["user_persona_id"] = persona_meta.get("user_id", "")
     sampled_inputs["assistant_persona_id"] = persona_meta.get("assistant_id", "")
     return sampled_inputs
-
 
 def _run_until_total_samples(
     cfg: Dict[str, Any],
@@ -596,7 +608,6 @@ def _run_until_total_samples(
 
     return generated
 
-
 def run_multi_turn(
     cfg: Dict[str, Any],
     output_paths: OutputPaths,
@@ -606,6 +617,34 @@ def run_multi_turn(
     turn_count_distribution: str,
     turn_count_mean: float,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]:
+    """Run multi turn.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        output_paths (OutputPaths): Filesystem path used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        min_turns (int): int value used by this operation.
+        max_turns (int): int value used by this operation.
+        turn_count_distribution (str): str value used by this operation.
+        turn_count_mean (float): float value used by this operation.
+    
+    Returns:
+        Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Dict[str, Any]]: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import run_multi_turn
+        >>> run_multi_turn(...)
+    
+    """
     shared_inputs = base_inputs
     default_turns = max(min_turns, 1)
     run_id, resume_state = init_run_state(output_paths, base_inputs, default_turns)
@@ -853,7 +892,6 @@ def run_multi_turn(
 
     return turns, raw_results, last_result
 
-
 async def run_multi_turn_batched_async(
     cfg: Dict[str, Any],
     output_paths: OutputPaths,
@@ -865,6 +903,36 @@ async def run_multi_turn_batched_async(
     turn_count_mean: float = 0.0,
     conversation_inputs_by_index: List[Dict[str, Any]] | None = None,
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    """Run multi turn batched async.
+    
+    Args:
+        cfg (Dict[str, Any]): Configuration mapping that controls runtime behavior.
+        output_paths (OutputPaths): Filesystem path used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        max_turns (int): int value used by this operation.
+        batch_size (int): Numeric control value for processing behavior.
+        min_turns (int): int value used by this operation.
+        turn_count_distribution (str): str value used by this operation.
+        turn_count_mean (float): float value used by this operation.
+        conversation_inputs_by_index (List[Dict[str, Any]] | None): List[Dict[str, Any]] | None value used by this operation.
+    
+    Returns:
+        Tuple[Dict[str, Any], List[Dict[str, Any]]]: Value produced by this API.
+    
+    Raises:
+        RuntimeError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import run_multi_turn_batched_async
+        >>> run_multi_turn_batched_async(...)
+    
+    """
     run_id, resume_state = init_batched_run_state(output_paths, base_inputs, max_turns, batch_size)
     planned_turns = _sample_turn_targets(
         batch_size=batch_size,
@@ -1234,7 +1302,6 @@ async def run_multi_turn_batched_async(
     )
     return base_inputs, conversations
 
-
 def _collect_batched_user_questions(conversations: List[Dict[str, Any]]) -> List[str]:
     questions: List[str] = []
     for slot in conversations:
@@ -1251,7 +1318,6 @@ def _collect_batched_user_questions(conversations: List[Dict[str, Any]]) -> List
             if question:
                 questions.append(question)
     return questions
-
 
 async def _complete_turn_async(
     cfg: Dict[str, Any],
@@ -1290,7 +1356,6 @@ async def _complete_turn_async(
         "judge_raw": judge_raw,
     }
 
-
 async def _generate_user_turn_async(
     cfg: Dict[str, Any],
     model_client: OpenAIModelClient,
@@ -1320,7 +1385,6 @@ async def _generate_user_turn_async(
 
     return qa_output, result.raw
 
-
 def _generate_user_turn(
     cfg: Dict[str, Any],
     model_client: OpenAIModelClient,
@@ -1349,7 +1413,6 @@ def _generate_user_turn(
         return qa_output, repaired.raw
 
     return qa_output, result.raw
-
 
 def _assistant_tools_schema(web_enabled: bool) -> List[Dict[str, Any]]:
     tools: List[Dict[str, Any]] = [
@@ -1389,7 +1452,6 @@ def _assistant_tools_schema(web_enabled: bool) -> List[Dict[str, Any]]:
         )
 
     return tools
-
 
 async def _generate_assistant_turn_async(
     cfg: Dict[str, Any],
@@ -1465,7 +1527,6 @@ async def _generate_assistant_turn_async(
 
     return {"assistant_message": "", "reasoning_trace": {}, "did_web_search": False}, tool_events, raw_response
 
-
 def _generate_assistant_turn(
     cfg: Dict[str, Any],
     model_client: OpenAIModelClient,
@@ -1540,7 +1601,6 @@ def _generate_assistant_turn(
 
     return {"assistant_message": "", "reasoning_trace": {}, "did_web_search": False}, tool_events, raw_response
 
-
 def _execute_tool(name: str, args: Dict[str, Any], cfg: Dict[str, Any], web_client: SerperWebSearchClient) -> Dict[str, Any]:
     if name == "vector_db_search":
         query = str(args.get("query") or "").strip()
@@ -1569,7 +1629,6 @@ def _execute_tool(name: str, args: Dict[str, Any], cfg: Dict[str, Any], web_clie
             }
 
     return {"error": f"Unknown tool: {name}"}
-
 
 def _generate_conversation_judge_turn(
     cfg: Dict[str, Any],
@@ -1621,7 +1680,6 @@ def _generate_conversation_judge_turn(
     _log_conversation_judge_result(inputs, judge_output)
     return judge_output, result.raw
 
-
 async def _generate_conversation_judge_turn_async(
     cfg: Dict[str, Any],
     model_client: OpenAIModelClient,
@@ -1672,7 +1730,6 @@ async def _generate_conversation_judge_turn_async(
     _log_conversation_judge_result(inputs, judge_output)
     return judge_output, result.raw
 
-
 def _generate_judge_turn(
     cfg: Dict[str, Any],
     model_client: OpenAIModelClient,
@@ -1719,7 +1776,6 @@ def _generate_judge_turn(
         }
     _log_judge_result(inputs, judge_output)
     return judge_output, result.raw
-
 
 async def _generate_judge_turn_async(
     cfg: Dict[str, Any],
@@ -1768,7 +1824,6 @@ async def _generate_judge_turn_async(
     _log_judge_result(inputs, judge_output)
     return judge_output, result.raw
 
-
 def _log_judge_result(inputs: Dict[str, Any], judge_output: Dict[str, Any]) -> None:
     turn_index = inputs.get("turn_index")
     conversation_index = inputs.get("conversation_index")
@@ -1782,7 +1837,6 @@ def _log_judge_result(inputs: Dict[str, Any], judge_output: Dict[str, Any]) -> N
         judge_output.get("reasons"),
     )
 
-
 def _log_conversation_judge_result(inputs: Dict[str, Any], judge_output: Dict[str, Any]) -> None:
     conversation_index = inputs.get("conversation_index")
     JUDGE_LOGGER.info(
@@ -1793,7 +1847,6 @@ def _log_conversation_judge_result(inputs: Dict[str, Any], judge_output: Dict[st
         judge_output.get("answer_ok"),
         judge_output.get("reasons"),
     )
-
 
 def _conversation_turns_for_judge(turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
@@ -1809,7 +1862,6 @@ def _conversation_turns_for_judge(turns: List[Dict[str, Any]]) -> List[Dict[str,
         )
     return rows
 
-
 def _collect_conversation_evidence(turns: List[Dict[str, Any]], max_items: int = 120) -> List[Dict[str, Any]]:
     collected: List[Dict[str, Any]] = []
     for turn in turns:
@@ -1819,7 +1871,6 @@ def _collect_conversation_evidence(turns: List[Dict[str, Any]], max_items: int =
         if len(collected) >= max_items:
             return collected[:max_items]
     return collected
-
 
 def _collect_evidence(qa: Dict[str, Any], kb: Dict[str, Any]) -> List[Dict[str, Any]]:
     evidence: List[Dict[str, Any]] = []
@@ -1833,7 +1884,6 @@ def _collect_evidence(qa: Dict[str, Any], kb: Dict[str, Any]) -> List[Dict[str, 
             evidence.append({"source": item.get("cue") or item.get("id"), "content": item.get("content")})
     return evidence
 
-
 def persist_training_sample(
     output_paths: OutputPaths,
     inputs: Dict[str, Any],
@@ -1841,6 +1891,32 @@ def persist_training_sample(
     turns: List[Dict[str, Any]],
     raw_results: List[Dict[str, Any]],
 ) -> None:
+    """Persist training sample.
+    
+    Args:
+        output_paths (OutputPaths): Filesystem path used by this operation.
+        inputs (Dict[str, Any]): Mapping payload for this operation.
+        result (Any): Input value for this operation.
+        turns (List[Dict[str, Any]]): Conversation or message data used during processing.
+        raw_results (List[Dict[str, Any]]): Conversation or message data used during processing.
+    
+    Returns:
+        None: No value is returned.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import persist_training_sample
+        >>> persist_training_sample(...)
+    
+    """
     question = inputs.get("question") or ""
     inputs_with_turns = {**inputs, "n_turns": inputs.get("n_turns") or len(turns)}
 
@@ -1862,12 +1938,35 @@ def persist_training_sample(
     except Exception as err:
         LOGGER.error(f"[training-data] Failed to save sample: {err}")
 
-
 def persist_batched_training_samples(
     output_paths: OutputPaths,
     base_inputs: Dict[str, Any],
     conversations: List[Dict[str, Any]],
 ) -> int:
+    """Persist batched training samples.
+    
+    Args:
+        output_paths (OutputPaths): Filesystem path used by this operation.
+        base_inputs (Dict[str, Any]): Mapping payload for this operation.
+        conversations (List[Dict[str, Any]]): List[Dict[str, Any]] value used by this operation.
+    
+    Returns:
+        int: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.pipeline.runner import persist_batched_training_samples
+        >>> persist_batched_training_samples(...)
+    
+    """
     saved = 0
     for slot in sorted(conversations, key=lambda item: int(item.get("conversation_index", 0))):
         turns = slot.get("turns") if isinstance(slot.get("turns"), list) else []
@@ -1920,7 +2019,6 @@ def persist_batched_training_samples(
             )
     return saved
 
-
 _LANGUAGE_PLACEHOLDERS = {
     "ar",
     "en",
@@ -1938,7 +2036,6 @@ _LANGUAGE_PLACEHOLDERS = {
     "saudi",
 }
 
-
 def _sanitize_retrieval_queries(kb_output: Dict[str, Any]) -> None:
     trace = kb_output.get("reasoning_trace")
     if not isinstance(trace, dict):
@@ -1948,7 +2045,6 @@ def _sanitize_retrieval_queries(kb_output: Dict[str, Any]) -> None:
         return
     for key in ("vector_db_search", "web_search"):
         retrieval[key] = _clean_query_list(retrieval.get(key))
-
 
 def _clean_query_list(raw: Any) -> List[str]:
     if raw is None:
@@ -1972,7 +2068,6 @@ def _clean_query_list(raw: Any) -> List[str]:
             continue
         cleaned.append(text)
     return cleaned
-
 
 def _as_bool(value: Any, default: bool = False) -> bool:
     if isinstance(value, bool):

@@ -1,3 +1,7 @@
+"""Ray actor construction and runtime helpers.
+
+"""
+
 from __future__ import annotations
 
 import os
@@ -7,8 +11,27 @@ import time
 from contextlib import suppress
 from typing import Any, Dict, List
 
-
 def import_ray() -> Any:
+    """Import ray.
+    
+    
+    Returns:
+        Any: Value produced by this API.
+    
+    Raises:
+        RuntimeError: Raised when validation or runtime requirements are not met.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.distributed.ray_runtime import import_ray
+        >>> import_ray(...)
+    
+    """
     try:
         import ray  # type: ignore
     except Exception as err:  # pragma: no cover - import errors are environment-specific
@@ -17,8 +40,31 @@ def import_ray() -> Any:
         ) from err
     return ray
 
-
 def create_worker_actor(role: str, num_cpus: float = 1.0, num_gpus: float = 0.0) -> Any:
+    """Create worker actor.
+    
+    Args:
+        role (str): str value used by this operation.
+        num_cpus (float): float value used by this operation.
+        num_gpus (float): float value used by this operation.
+    
+    Returns:
+        Any: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.distributed.ray_runtime import create_worker_actor
+        >>> create_worker_actor(...)
+    
+    """
     ray = import_ray()
 
     @ray.remote(num_cpus=num_cpus, num_gpus=num_gpus)
@@ -38,8 +84,29 @@ def create_worker_actor(role: str, num_cpus: float = 1.0, num_gpus: float = 0.0)
 
     return WorkerReplicaActor.remote(role)
 
-
 def create_coordinator_actor(num_cpus: float = 1.0) -> Any:
+    """Create coordinator actor.
+    
+    Args:
+        num_cpus (float): float value used by this operation.
+    
+    Returns:
+        Any: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.distributed.ray_runtime import create_coordinator_actor
+        >>> create_coordinator_actor(...)
+    
+    """
     ray = import_ray()
 
     @ray.remote(num_cpus=num_cpus)
@@ -65,8 +132,30 @@ def create_coordinator_actor(num_cpus: float = 1.0) -> Any:
 
     return CoordinatorActor.remote()
 
-
 def create_vllm_server_actor(num_cpus: float = 1.0, num_gpus: float = 1.0) -> Any:
+    """Create vllm server actor.
+    
+    Args:
+        num_cpus (float): float value used by this operation.
+        num_gpus (float): float value used by this operation.
+    
+    Returns:
+        Any: Value produced by this API.
+    
+    Raises:
+        Exception: Propagates unexpected runtime errors from downstream calls.
+    
+    Side Effects / I/O:
+        - May perform network, model, or distributed runtime operations.
+    
+    Preconditions / Invariants:
+        - Callers should provide arguments matching annotated types and expected data contracts.
+    
+    Examples:
+        >>> from dlgforge.distributed.ray_runtime import create_vllm_server_actor
+        >>> create_vllm_server_actor(...)
+    
+    """
     ray = import_ray()
 
     @ray.remote(num_cpus=num_cpus, num_gpus=num_gpus)
