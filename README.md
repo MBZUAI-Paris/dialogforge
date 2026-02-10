@@ -7,14 +7,11 @@
 <p align="center"><strong>Lightweight synthetic multi-turn dialogue generation with a LiteLLM-routed LLM stack.</strong></p>
 
 <p align="center">
-  <a href="https://github.com/MBZUAI-Paris/dialogforge/actions/workflows/ci.yml">
-    <img src="https://github.com/MBZUAI-Paris/dialogforge/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <a href="https://mbzuai-paris.github.io/dlgforge/">
+    <img src="https://img.shields.io/badge/docs-mbzuai--paris.github.io%2Fdlgforge-blue?style=flat-square" alt="Docs">
   </a>
   <a href="https://pypi.org/project/dlgforge/">
     <img src="https://img.shields.io/pypi/v/dlgforge?style=flat-square" alt="PyPI">
-  </a>
-  <a href="https://pypi.org/project/dlgforge/">
-    <img src="https://img.shields.io/pypi/pyversions/dlgforge?style=flat-square" alt="Python versions">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/MBZUAI-Paris/dialogforge?style=flat-square" alt="License">
@@ -29,7 +26,9 @@
 - export-ready JSONL artifacts
 - optional one-command distributed bootstrap (Ray + Postgres + vLLM backends)
 
-No CrewAI, FastAPI, or multiprocessing.
+<p align="center">
+  <img src="assets/dialogforge.jpeg" alt="dlgforge architecture diagram" width="75%" />
+</p>
 
 ## Documentation hub
 - [Docs home](docs/index.md)
