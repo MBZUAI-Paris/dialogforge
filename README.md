@@ -7,8 +7,8 @@
 <p align="center"><strong>Lightweight synthetic multi-turn dialogue generation with a LiteLLM-routed LLM stack.</strong></p>
 
 <p align="center">
-  <a href="https://mbzuai-paris.github.io/dlgforge/">
-    <img src="https://img.shields.io/badge/docs-mbzuai--paris.github.io%2Fdlgforge-blue?style=flat-square" alt="Docs">
+  <a href="https://mbzuai-paris.github.io/dialogforge/">
+    <img src="https://img.shields.io/badge/docs-mbzuai--paris.github.io%2Fdialogforge-blue?style=flat-square" alt="Docs">
   </a>
   <a href="https://pypi.org/project/dlgforge/">
     <img src="https://img.shields.io/pypi/v/dlgforge?style=flat-square" alt="PyPI">
