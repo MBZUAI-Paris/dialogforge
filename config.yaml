@@ -23,7 +23,7 @@ run:
       workers: true
 
 models:
-  embedding_model: google/embeddinggemma-300m
+  embedding_model: sentence-transformers/all-MiniLM-L6-v2
   use_reranker: false
   reranker_model: Qwen/Qwen3-Reranker-4B
   reranker_backend: qwen3

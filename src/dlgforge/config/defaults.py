@@ -55,7 +55,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         },
     },
     "models": {
-        "embedding_model": "Qwen/Qwen3-Embedding-4B",
+        "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
         "fallback_embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
         "use_reranker": False,
         "reranker_model": "Qwen/Qwen3-Reranker-4B",

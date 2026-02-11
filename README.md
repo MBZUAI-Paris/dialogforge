@@ -87,6 +87,7 @@ Minimum required:
   - `LLM_MODEL`
   - `OPENAI_MODEL`
 - provider credential env vars for whichever models you use (for example `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`)
+- `HF_TOKEN` is optional for generation with the default embedding model (`sentence-transformers/all-MiniLM-L6-v2`); it is needed for gated/private HF models and `dlgforge push`
 
 ### 2.3 Prepare knowledge directory
 `dlgforge run` requires a `knowledge/` folder at the project root with at least one supported file (`.txt`, `.md`, or `.pdf`).
@@ -647,6 +648,11 @@ If preflight fails with `Missing knowledge directory` or `No supported knowledge
 - create `knowledge/` at the repository root
 - add at least one `.txt`, `.md`, or `.pdf` file under `knowledge/`
 - rerun generation (optionally set `retrieval.rebuild_index: true` for one run after major document changes)
+
+### 11.8 Hugging Face auth error while loading embeddings
+If you see model download/auth errors:
+- keep the default `models.embedding_model: sentence-transformers/all-MiniLM-L6-v2` (no HF token required in standard setups)
+- if you switch to a gated/private HF embedding model, set `HF_TOKEN` (or `HUGGINGFACE_HUB_TOKEN`) in `.env`
 
 ---
 

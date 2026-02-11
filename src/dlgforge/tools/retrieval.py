@@ -90,7 +90,9 @@ class KnowledgeVectorStore:
         self.skip_if_unchanged = skip_if_unchanged
         self.knowledge_dir.mkdir(parents=True, exist_ok=True)
 
-        model_name = embedding_model_name or os.getenv("EMBEDDING_MODEL_NAME", "Qwen/Qwen3-Embedding-4B")
+        model_name = embedding_model_name or os.getenv(
+            "EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2"
+        )
         self.embedding_model_name = model_name
         embedding_start = time.perf_counter()
         LOGGER.info(f"[vector-db] Initializing embedding model={self.embedding_model_name}")
@@ -612,7 +614,7 @@ def configure_retrieval(cfg: Dict[str, Any], project_root: Path) -> None:
         retrieval_cfg.get("embedding_model")
         or models_cfg.get("embedding_model")
         or os.getenv("EMBEDDING_MODEL_NAME")
-        or "Qwen/Qwen3-Embedding-4B"
+        or "sentence-transformers/all-MiniLM-L6-v2"
     )
 
     _RUNTIME_OPTIONS = {
