@@ -88,30 +88,40 @@ Minimum required:
   - `OPENAI_MODEL`
 - provider credential env vars for whichever models you use (for example `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`)
 
-### 2.3 Run generation
+### 2.3 Prepare knowledge directory
+`dlgforge run` requires a `knowledge/` folder at the project root with at least one supported file (`.txt`, `.md`, or `.pdf`).
+
 ```bash
+mkdir -p knowledge
+# add your source docs under knowledge/, for example: knowledge/product_faq.md
+```
+
+By default, retrieval embeddings/chunks are cached under `knowledge_index/` (`retrieval.persist_dir` in `config.yaml`).
+
+### 2.4 Run generation
+```bash
+uv run env PYTHONPATH=src python -m dlgforge run config.yaml
+```
+
+If the package is installed in the environment (`uv pip install -e .`), these are equivalent:
+```bash
+uv run dlgforge run config.yaml
 dlgforge run config.yaml
 ```
 
-Equivalent:
-```bash
-uv run dlgforge run config.yaml
-python -m dlgforge run config.yaml
-```
-
-### 2.4 Verify first outputs
+### 2.5 Verify first outputs
 - `outputs/conversations/*.json`
 - `outputs/conversations_sharegpt.jsonl`
 - `outputs/turns.jsonl`
 - `outputs/run_state/*.json`
 - `logs/run.log`, `logs/llm.log`, `logs/judge.log`
 
-### 2.5 Recommended mode by setup
+### 2.6 Recommended mode by setup
 - macOS laptop + LM Studio: `run.distributed.enabled: false` + `llm.backend: openai` + `llm.base_url: http://127.0.0.1:1234/v1`
 - macOS laptop + distributed orchestrator: `run.distributed.enabled: true` + `llm.backend: vllm_attach` + Postgres DSN
 - Linux GPU nodes and self-managed cluster: `run.distributed.enabled: true` + `llm.backend: vllm_managed`
 
-### 2.6 Run modes (copy-paste)
+### 2.7 Run modes (copy-paste)
 #### A) LM Studio local, non-distributed (recommended on macOS)
 ```yaml
 run:
@@ -571,6 +581,11 @@ Batched resume rules:
 ## 10) CLI commands
 Run generation:
 ```bash
+uv run env PYTHONPATH=src python -m dlgforge run config.yaml
+```
+
+If the package is installed in the active environment:
+```bash
 dlgforge run config.yaml
 ```
 
@@ -626,6 +641,12 @@ Check:
 If retrieval errors appear after model/backend changes:
 - set `retrieval.rebuild_index: true` for one run, then back to `false`
 - or remove `knowledge_index/` and regenerate
+
+### 11.7 Missing `knowledge/` or empty knowledge base
+If preflight fails with `Missing knowledge directory` or `No supported knowledge files found`:
+- create `knowledge/` at the repository root
+- add at least one `.txt`, `.md`, or `.pdf` file under `knowledge/`
+- rerun generation (optionally set `retrieval.rebuild_index: true` for one run after major document changes)
 
 ---
 
