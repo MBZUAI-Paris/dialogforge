@@ -57,7 +57,7 @@ The pipeline runs up to three logical stages per turn:
 3. `qa_judge`: evaluates quality/grounding (configurable granularity).
 
 It supports:
-- fixed turns (`run.n_turns`) or sampled turns per conversation (`min_turns/max_turns` + distribution)
+- fixed turns (`run.turns.mode: exact` + `run.turns.exact`) or sampled turns per conversation (`run.turns.mode: range` + `run.turns.min/max/distribution`)
 - batched concurrent generation (`run.batch_size`)
 - language loops (`run.target_languages`) with `total_samples` generated per language
 - deterministic exact-normalized question dedup across the full run
@@ -70,7 +70,7 @@ source .venv/bin/activate
 uv pip install -e .
 ```
 
-If you want managed local/cluster vLLM autostart mode (`llm.backend: vllm_managed`, Linux GPU nodes):
+If you want managed local/cluster vLLM autostart mode (`llm.mode: vllm_managed`, Linux GPU nodes):
 ```bash
 python -m pip install -e ".[vllm]"
 ```
@@ -81,12 +81,18 @@ cp .env.example .env
 ```
 
 Minimum required:
-- model source from one of:
-  - `llm.agents.<agent>.model`
-  - `llm.model`
-  - `LLM_MODEL`
-  - `OPENAI_MODEL`
-- provider credential env vars for whichever models you use (for example `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`)
+- model per active role:
+  - `llm.agents.user.model`
+  - `llm.agents.assistant.model`
+  - `llm.agents.judge.model` (when `judge.mode: online`)
+- provider credential env vars (for example `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`)
+  - provider secret names are flexible; common patterns like `*_API_KEY` and `*_TOKEN` are supported
+- required agent credential mapping vars:
+  - `LLM_USER_API_KEY_ENV`
+  - `LLM_ASSISTANT_API_KEY_ENV`
+  - `LLM_JUDGE_API_KEY_ENV`
+  - legacy aliases (`LLM_QA_GENERATOR_API_KEY_ENV`, `LLM_KB_RESPONDER_API_KEY_ENV`, `LLM_QA_JUDGE_API_KEY_ENV`) are still accepted with deprecation warnings
+- do not place `api_key` or `api_key_env` in YAML; credentials are environment-only
 - `HF_TOKEN` is optional for generation with the default embedding model (`sentence-transformers/all-MiniLM-L6-v2`); it is needed for gated/private HF models and `dlgforge push`
 
 ### 2.3 Prepare knowledge directory
@@ -97,7 +103,7 @@ mkdir -p knowledge
 # add your source docs under knowledge/, for example: knowledge/product_faq.md
 ```
 
-By default, retrieval embeddings/chunks are cached under `knowledge_index/` (`retrieval.persist_dir` in `config.yaml`).
+By default, retrieval embeddings/chunks are cached under `knowledge_index/` (`tools.retrieval.index.persist_dir` in `config.yaml`).
 
 ### 2.4 Run generation
 ```bash
@@ -118,9 +124,9 @@ dlgforge run config.yaml
 - `logs/run.log`, `logs/llm.log`, `logs/judge.log`
 
 ### 2.6 Recommended mode by setup
-- macOS laptop + LM Studio: `run.distributed.enabled: false` + `llm.backend: openai` + `llm.base_url: http://127.0.0.1:1234/v1`
-- macOS laptop + distributed orchestrator: `run.distributed.enabled: true` + `llm.backend: vllm_attach` + Postgres DSN
-- Linux GPU nodes and self-managed cluster: `run.distributed.enabled: true` + `llm.backend: vllm_managed`
+- macOS laptop + LM Studio: `run.distributed.enabled: false` + `llm.mode: api` + `llm.agents.*.base_url: http://127.0.0.1:1234/v1`
+- macOS laptop + distributed orchestrator: `run.distributed.enabled: true` + `llm.mode: vllm_attach` + Postgres DSN
+- Linux GPU nodes and self-managed cluster: `run.distributed.enabled: true` + `llm.mode: vllm_managed`
 
 ### 2.7 Run modes (copy-paste)
 #### A) LM Studio local, non-distributed (recommended on macOS)
@@ -129,18 +135,19 @@ run:
   distributed:
     enabled: false
 llm:
-  backend: openai
-  base_url: http://127.0.0.1:1234/v1
-  api_key: EMPTY
+  mode: api
   agents:
-    qa_generator:
+    user:
       model: openai/gpt-oss-20b
-    kb_responder:
+      base_url: http://127.0.0.1:1234/v1
+    assistant:
       model: openai/gpt-oss-20b
-    qa_judge:
+      base_url: http://127.0.0.1:1234/v1
+    judge:
       model: openai/gpt-oss-20b
+      base_url: http://127.0.0.1:1234/v1
 ```
-For non-OpenAI `llm.base_url` values (for example LM Studio / vLLM), dlgforge auto-uses LiteLLM openai-compatible passthrough so namespaced model IDs like `openai/gpt-oss-20b` are forwarded unchanged.
+Make sure to specify the correct base URLs for each agent via `llm.agents.<role>.base_url` (refer to https://docs.litellm.ai/docs/providers for base_url and api_key formats for different providers). dlgforge auto-uses LiteLLM openai-compatible passthrough so namespaced model IDs like `openai/gpt-oss-20b` are forwarded unchanged.
 ```bash
 dlgforge run config.yaml
 ```
@@ -151,7 +158,7 @@ run:
   distributed:
     enabled: false
 llm:
-  backend: openai
+  mode: api
 ```
 ```bash
 dlgforge run config.yaml
@@ -166,7 +173,7 @@ ray:
   address: auto
   auto_start_local: true
 llm:
-  backend: openai
+  mode: api
 ```
 ```bash
 export DLGFORGE_POSTGRES_DSN='postgresql://USER:PASS@HOST:5432/DB'
@@ -181,7 +188,7 @@ run:
   distributed:
     enabled: true
 llm:
-  backend: vllm_attach
+  mode: vllm_attach
   routing:
     endpoints:
       - name: gpu-node-1
@@ -199,7 +206,7 @@ run:
   distributed:
     enabled: true
 llm:
-  backend: vllm_managed
+  mode: vllm_managed
   vllm:
     model: Qwen/Qwen2.5-7B-Instruct
     served_model_name: qwen
@@ -235,10 +242,9 @@ Recommended per-agent setup:
 - vLLM (OpenAI-compatible endpoint):
   - `provider: openai` (or `hosted_vllm`)
   - `base_url: http://localhost:8000/v1`
-  - `api_key: EMPTY` (if your endpoint does not require auth)
 
-Be careful with global env/config fallbacks:
-- `OPENAI_BASE_URL` can affect agents that do not set an agent-level `base_url`.
+Be careful with env/config precedence:
+- credentials are env-only via `LLM_USER_API_KEY_ENV`, `LLM_ASSISTANT_API_KEY_ENV`, `LLM_JUDGE_API_KEY_ENV`.
 - `LLM_<ROLE>_*` env vars override `config.yaml` values for that specific role.
 - for mixed providers, prefer setting provider/model/base_url explicitly per agent in `llm.agents.<role>`.
 
@@ -292,42 +298,60 @@ Important:
 ## 4) Configuration guide
 ### 4.1 `run`
 Core run controls:
-- `run.n_turns`: fixed turns when no range sampling is used.
 - `run.batch_size`: number of conversations advanced concurrently.
 - `run.total_samples`: number of conversations to persist per language.
 - `run.target_languages`: list of languages.
 - `run.run_id`: optional explicit run id.
 - `run.resume_run_id`: resume checkpoint.
 
-Turn count sampling:
-- `run.min_turns`
-- `run.max_turns`
-- `run.turn_count_distribution`: `uniform`, `poisson`, or `exponential`
-- `run.turn_count_mean`: mean for `poisson`/`exponential`
+Turn count:
+- `run.turns.mode`: `exact` or `range`
+- `run.turns.exact`: used when `mode: exact`
+- `run.turns.min`, `run.turns.max`: used when `mode: range`
+- `run.turns.distribution`: `uniform`, `poisson`, or `exponential`
+- `run.turns.mean`: mean for `poisson`/`exponential`
+
+Data shaping:
+- `run.data.seeding.question`
+- `run.data.seeding.topics.path`
+- `run.data.seeding.topics.enabled`
+- `run.data.seeding.topics.variant`
+- `run.data.seeding.topics.probability`
 
 Behavior:
-- sampled turns are clamped to `[min_turns, max_turns]`
+- sampled turns are clamped to `[run.turns.min, run.turns.max]`
 - each conversation samples independently
 
 ### 4.2 `llm`
 LiteLLM-routed settings:
-- `llm.provider`
-- `llm.base_url`
-- `llm.api_key` / env
-- per-agent overrides under `llm.agents`
-- `llm.backend`: `openai`, `vllm_attach`, or `vllm_managed`
+- `llm.mode`: `api`, `vllm_attach`, or `vllm_managed`
+- per-agent settings under `llm.agents.<role>`:
+  - `provider`, `model`, `base_url`
+  - optional sampling params (`temperature`, `max_tokens`, `top_p`, `timeout`, `max_retries`, `extra`)
+- credentials are environment-only via:
+  - `LLM_USER_API_KEY_ENV`
+  - `LLM_ASSISTANT_API_KEY_ENV`
+  - `LLM_JUDGE_API_KEY_ENV`
 - `llm.routing.*`: multi-endpoint routing (used by attach/managed vLLM modes)
-- `llm.vllm.*`: managed vLLM replica settings when `llm.backend: vllm_managed`
+- `llm.vllm.*`: managed vLLM replica settings when `llm.mode: vllm_managed`
 
 Agents:
-- `qa_generator`
-- `kb_responder`
-- `qa_judge`
+- `user`
+- `assistant`
+- `judge`
 
-### 4.3 `retrieval`
-KB search defaults:
-- `retrieval.default_k`
-- chunking and index options
+### 4.3 `tools`
+Tool settings:
+- `tools.web_search.enabled`
+- `tools.web_search.serper_num_results`
+- `tools.web_search.serper_timeout`
+- `tools.retrieval.top_k`
+- `tools.retrieval.chunking.chunk_size`
+- `tools.retrieval.chunking.chunk_overlap`
+- `tools.retrieval.index.persist_dir`
+- `tools.retrieval.index.rebuild`
+- `tools.retrieval.embeddings.*`
+- `tools.retrieval.reranker.*`
 
 ### 4.4 `coverage`
 Dedup and coverage behavior:
@@ -367,15 +391,14 @@ Enable one-command distributed launch from the same CLI entrypoint:
 run:
   distributed:
     enabled: true
-    executor: ray
+    backend: ray
     spawn:
       coordinator: true
       workers: true
-
-ray:
-  address: "auto"
-  auto_start_local: true
-  namespace: "dlgforge"
+    ray:
+      address: "auto"
+      auto_start_local: true
+      namespace: "dlgforge"
 
 store:
   backend: postgres
@@ -383,7 +406,7 @@ store:
     dsn: "${DLGFORGE_POSTGRES_DSN}"
 
 llm:
-  backend: vllm_attach  # openai | vllm_attach | vllm_managed
+  mode: vllm_attach  # api | vllm_attach | vllm_managed
   routing:
     strategy: weighted_least_inflight
     endpoints:
@@ -397,10 +420,10 @@ llm:
 
 Behavior:
 - `dlgforge run config.yaml` bootstraps coordinator + workers automatically when `run.distributed.enabled: true`
-- Ray init tries `ray.address` first; when `ray.address: auto` has no running cluster and `ray.auto_start_local: true`, it falls back to a local Ray runtime
-- `llm.backend: openai` uses hosted API (no vLLM provisioning)
-- `llm.backend: vllm_attach` validates configured vLLM endpoints before run
-- `llm.backend: vllm_managed` starts/stops vLLM servers on Ray GPU actors
+- Ray init tries `run.distributed.ray.address` first; when `run.distributed.ray.address: auto` has no running cluster and `run.distributed.ray.auto_start_local: true`, it falls back to a local Ray runtime
+- `llm.mode: api` uses hosted API (no vLLM provisioning)
+- `llm.mode: vllm_attach` validates configured vLLM endpoints before run
+- `llm.mode: vllm_managed` starts/stops vLLM servers on Ray GPU actors
 - current execution path runs generation from the coordinator actor while worker replicas are provisioned for lifecycle orchestration hooks
 
 Bootstrap sequence:
@@ -409,8 +432,8 @@ flowchart TD
   A["dlgforge run config.yaml"] --> B["RunBootstrap"]
   B --> C["Initialize Ray"]
   C --> D["Validate Postgres DSN and ping"]
-  D --> E{"llm.backend"}
-  E -->|openai| F["No vLLM provisioning"]
+  D --> E{"llm.mode"}
+  E -->|api| F["No vLLM provisioning"]
   E -->|vllm_attach| G["Validate configured /v1/models endpoints"]
   E -->|vllm_managed| H["Spawn vLLM server actors and wait healthy"]
   F --> I["Spawn coordinator actor"]
@@ -437,10 +460,10 @@ Mode matrix:
 ```mermaid
 flowchart TD
   S{"run.distributed.enabled"}
-  S -->|false| L["Local mode: openai only, no Ray/Postgres requirement"]
+  S -->|false| L["Local mode: api, no Ray/Postgres requirement"]
   S -->|true| D["Distributed mode: Ray plus Postgres required"]
-  D --> B{"llm.backend"}
-  B -->|openai| BO["Hosted OpenAI path"]
+  D --> B{"llm.mode"}
+  B -->|api| BO["Hosted API path"]
   B -->|vllm_attach| BA["Use user-provided vLLM endpoints"]
   B -->|vllm_managed| BM["Auto-start vLLM on Ray GPU workers (vllm extra required)"]
 ```
@@ -611,7 +634,7 @@ dlgforge seeds-migrate config.yaml --source-file seed_topics.json --dest-file da
 Check:
 - `judge.enabled: true`
 - `judge.mode: online`
-- `llm.agents.qa_judge.model` resolves
+- `llm.agents.judge.model` resolves
 - API key present
 
 ### 11.2 No judged output in conversation mode
@@ -640,18 +663,18 @@ Check:
 
 ### 11.6 Embedding/index mismatch
 If retrieval errors appear after model/backend changes:
-- set `retrieval.rebuild_index: true` for one run, then back to `false`
+- set `tools.retrieval.index.rebuild: true` for one run, then back to `false`
 - or remove `knowledge_index/` and regenerate
 
 ### 11.7 Missing `knowledge/` or empty knowledge base
 If preflight fails with `Missing knowledge directory` or `No supported knowledge files found`:
 - create `knowledge/` at the repository root
 - add at least one `.txt`, `.md`, or `.pdf` file under `knowledge/`
-- rerun generation (optionally set `retrieval.rebuild_index: true` for one run after major document changes)
+- rerun generation (optionally set `tools.retrieval.index.rebuild: true` for one run after major document changes)
 
 ### 11.8 Hugging Face auth error while loading embeddings
 If you see model download/auth errors:
-- keep the default `models.embedding_model: sentence-transformers/all-MiniLM-L6-v2` (no HF token required in standard setups)
+- keep the default `tools.retrieval.embeddings.model: sentence-transformers/all-MiniLM-L6-v2` (no HF token required in standard setups)
 - if you switch to a gated/private HF embedding model, set `HF_TOKEN` (or `HUGGINGFACE_HUB_TOKEN`) in `.env`
 
 ---

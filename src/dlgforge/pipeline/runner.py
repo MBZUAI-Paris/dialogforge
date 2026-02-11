@@ -118,7 +118,9 @@ def run(config_path: str) -> None:
     _preflight_checks(cfg, resolved_config_path, project_root)
     _apply_runtime_env(cfg)
     retrieval_default_k = resolve_retrieval_default_k(cfg)
-    use_reranker = _as_bool((cfg.get("models", {}) or {}).get("use_reranker", False), default=False)
+    retrieval_cfg = _resolve_retrieval_cfg(cfg)
+    reranker_cfg = retrieval_cfg.get("reranker", {}) if isinstance(retrieval_cfg.get("reranker"), dict) else {}
+    use_reranker = _as_bool(reranker_cfg.get("enabled", (cfg.get("models", {}) or {}).get("use_reranker", False)), default=False)
     RETRIEVAL_LOGGER.info(f"[retrieval] effective default_k={retrieval_default_k}, use_reranker={use_reranker}")
 
     output_dir = resolve_output_dir(cfg, project_root)
@@ -388,7 +390,7 @@ def _preflight_judge_only(cfg: Dict[str, Any], config_path: Path) -> None:
     model = (settings.get("model") or "").strip()
     if not model:
         raise RuntimeError(
-            "Missing qa_judge model. Set `llm.agents.qa_judge.model`, `llm.model`, `LLM_MODEL`, or `OPENAI_MODEL`."
+            "Missing judge model. Set `llm.agents.judge.model` (or legacy `llm.agents.qa_judge.model`)."
         )
 
 def _preflight_checks(cfg: Dict[str, Any], config_path: Path, project_root: Path) -> None:
@@ -410,11 +412,11 @@ def _preflight_checks(cfg: Dict[str, Any], config_path: Path, project_root: Path
         joined = ", ".join(missing)
         raise RuntimeError(
             "Missing LLM model for required agent(s): "
-            f"{joined}. Set per-agent model in config, or set llm.model, or LLM_MODEL, or OPENAI_MODEL in .env."
+            f"{joined}. Set per-agent models in `llm.agents.<role>.model`."
         )
 
-    tools_cfg = cfg.get("tools", {}) or {}
-    web_enabled = bool(tools_cfg.get("web_search_enabled", True))
+    web_search_cfg = _resolve_web_search_cfg(cfg)
+    web_enabled = bool(web_search_cfg.get("enabled", False))
     if web_enabled and not (os.getenv("SERPER_API_KEY") or "").strip():
         TOOLS_LOGGER.warning(
             "[preflight] Web search is enabled but SERPER_API_KEY is missing; "
@@ -442,6 +444,43 @@ def _resolve_total_samples_target(total_samples_cfg: int, batch_size: int) -> in
     if total_samples_cfg > 0:
         return total_samples_cfg
     return batch_size if batch_size > 1 else 1
+
+
+def _resolve_tools_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    tools_cfg = cfg.get("tools", {})
+    return tools_cfg if isinstance(tools_cfg, dict) else {}
+
+
+def _resolve_retrieval_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    tools_cfg = _resolve_tools_cfg(cfg)
+    retrieval_cfg = tools_cfg.get("retrieval", {})
+    if isinstance(retrieval_cfg, dict):
+        return retrieval_cfg
+    legacy = cfg.get("retrieval", {})
+    return legacy if isinstance(legacy, dict) else {}
+
+
+def _resolve_web_search_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    tools_cfg = _resolve_tools_cfg(cfg)
+    web_cfg = tools_cfg.get("web_search", {})
+    if not isinstance(web_cfg, dict):
+        web_cfg = {}
+    enabled_raw = web_cfg.get("enabled", tools_cfg.get("web_search_enabled", False))
+    num_results_raw = web_cfg.get("serper_num_results", tools_cfg.get("serper_num_results", 5))
+    timeout_raw = web_cfg.get("serper_timeout", tools_cfg.get("serper_timeout", 30))
+    try:
+        num_results = int(num_results_raw)
+    except (TypeError, ValueError):
+        num_results = 5
+    try:
+        timeout = int(timeout_raw)
+    except (TypeError, ValueError):
+        timeout = 30
+    return {
+        "enabled": _as_bool(enabled_raw, default=False),
+        "serper_num_results": num_results if num_results > 0 else 5,
+        "serper_timeout": timeout if timeout > 0 else 30,
+    }
 
 def _sample_turn_count(
     min_turns: int,
@@ -702,11 +741,11 @@ def run_multi_turn(
     )
 
     model_client = OpenAIModelClient()
-    tools_cfg = cfg.get("tools", {}) or {}
-    web_enabled = bool(tools_cfg.get("web_search_enabled", True))
+    web_search_cfg = _resolve_web_search_cfg(cfg)
+    web_enabled = bool(web_search_cfg.get("enabled", False))
     web_client = SerperWebSearchClient(
-        num_results=int(tools_cfg.get("serper_num_results", 5) or 5),
-        timeout=int(tools_cfg.get("serper_timeout", 30) or 30),
+        num_results=int(web_search_cfg.get("serper_num_results", 5) or 5),
+        timeout=int(web_search_cfg.get("serper_timeout", 30) or 30),
     )
 
     run_started_at = time.perf_counter()
@@ -1015,11 +1054,11 @@ async def run_multi_turn_batched_async(
     )
 
     model_client = OpenAIModelClient()
-    tools_cfg = cfg.get("tools", {}) or {}
-    web_enabled = bool(tools_cfg.get("web_search_enabled", True))
+    web_search_cfg = _resolve_web_search_cfg(cfg)
+    web_enabled = bool(web_search_cfg.get("enabled", False))
     web_client = SerperWebSearchClient(
-        num_results=int(tools_cfg.get("serper_num_results", 5) or 5),
-        timeout=int(tools_cfg.get("serper_timeout", 30) or 30),
+        num_results=int(web_search_cfg.get("serper_num_results", 5) or 5),
+        timeout=int(web_search_cfg.get("serper_timeout", 30) or 30),
     )
 
     run_started_at = time.perf_counter()
@@ -1605,14 +1644,10 @@ def _execute_tool(name: str, args: Dict[str, Any], cfg: Dict[str, Any], web_clie
     if name == "vector_db_search":
         query = str(args.get("query") or "").strip()
         k = args.get("k")
-        use_reranker = _as_bool((cfg.get("models", {}) or {}).get("use_reranker", False), default=False)
-        retrieval_cfg = cfg.get("retrieval", {}) or {}
-        default_k_raw = retrieval_cfg.get("default_k", 4)
-        try:
-            default_k = int(default_k_raw)
-        except (TypeError, ValueError):
-            default_k = 4
-        default_k = default_k if default_k > 0 else 4
+        retrieval_cfg = _resolve_retrieval_cfg(cfg)
+        reranker_cfg = retrieval_cfg.get("reranker", {}) if isinstance(retrieval_cfg.get("reranker"), dict) else {}
+        use_reranker = _as_bool(reranker_cfg.get("enabled", (cfg.get("models", {}) or {}).get("use_reranker", False)), default=False)
+        default_k = resolve_retrieval_default_k(cfg, fallback=4)
         effective_k = k if isinstance(k, int) and k > 0 else default_k
         TOOLS_LOGGER.info(f"[retrieval] vector_db_search k={effective_k} use_reranker={use_reranker}")
         return vector_db_search(query=query, k=k if isinstance(k, int) else None, use_reranker=use_reranker)

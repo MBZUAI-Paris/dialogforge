@@ -574,6 +574,16 @@ _RUNTIME_OPTIONS: Dict[str, Any] = {}
 _CACHED_STORE: Optional[KnowledgeVectorStore] = None
 _CACHED_FINGERPRINT: Optional[str] = None
 
+
+def _resolve_retrieval_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    tools_cfg = cfg.get("tools", {}) if isinstance(cfg.get("tools"), dict) else {}
+    retrieval_cfg = tools_cfg.get("retrieval")
+    if isinstance(retrieval_cfg, dict):
+        return retrieval_cfg
+    legacy = cfg.get("retrieval", {})
+    return legacy if isinstance(legacy, dict) else {}
+
+
 def configure_retrieval(cfg: Dict[str, Any], project_root: Path) -> None:
     """Configure retrieval.
     
@@ -600,36 +610,52 @@ def configure_retrieval(cfg: Dict[str, Any], project_root: Path) -> None:
     """
     global _RUNTIME_OPTIONS
 
-    retrieval_cfg = cfg.get("retrieval", {}) or {}
+    retrieval_cfg = _resolve_retrieval_cfg(cfg)
     models_cfg = cfg.get("models", {}) or {}
+    chunking_cfg = retrieval_cfg.get("chunking", {}) if isinstance(retrieval_cfg.get("chunking"), dict) else {}
+    index_cfg = retrieval_cfg.get("index", {}) if isinstance(retrieval_cfg.get("index"), dict) else {}
+    embeddings_cfg = retrieval_cfg.get("embeddings", {}) if isinstance(retrieval_cfg.get("embeddings"), dict) else {}
+    reranker_cfg = retrieval_cfg.get("reranker", {}) if isinstance(retrieval_cfg.get("reranker"), dict) else {}
 
     knowledge_dir = project_root / "knowledge"
 
-    persist_dir_raw = retrieval_cfg.get("persist_dir")
+    persist_dir_raw = index_cfg.get("persist_dir", retrieval_cfg.get("persist_dir"))
     persist_dir = Path(str(persist_dir_raw)) if persist_dir_raw else None
     if persist_dir and not persist_dir.is_absolute():
         persist_dir = project_root / persist_dir
 
     model_name = str(
-        retrieval_cfg.get("embedding_model")
+        embeddings_cfg.get("model")
+        or retrieval_cfg.get("embedding_model")
         or models_cfg.get("embedding_model")
         or os.getenv("EMBEDDING_MODEL_NAME")
         or "sentence-transformers/all-MiniLM-L6-v2"
     )
 
+    default_k_raw = retrieval_cfg.get("top_k", retrieval_cfg.get("default_k", 4))
+    try:
+        default_k = int(default_k_raw)
+    except (TypeError, ValueError):
+        default_k = 4
+    default_k = default_k if default_k > 0 else 4
+
     _RUNTIME_OPTIONS = {
         "knowledge_dir": knowledge_dir,
         "collection_name": "dlgforge_knowledge",
-        "chunk_size": int(retrieval_cfg.get("chunk_size", 750) or 750),
-        "overlap": int(retrieval_cfg.get("overlap", 150) or 150),
+        "chunk_size": int(chunking_cfg.get("chunk_size", retrieval_cfg.get("chunk_size", 750)) or 750),
+        "overlap": int(chunking_cfg.get("chunk_overlap", retrieval_cfg.get("overlap", 150)) or 150),
         "embedding_model_name": model_name,
         "persist_dir": persist_dir,
-        "rebuild_index": _as_bool(retrieval_cfg.get("rebuild_index", False), default=False),
-        "skip_if_unchanged": _as_bool(retrieval_cfg.get("skip_if_unchanged", True), default=True),
-        "default_k": int(retrieval_cfg.get("default_k", 4) or 4),
-        "reranker_model": str(models_cfg.get("reranker_model") or ""),
-        "reranker_candidates": int(models_cfg.get("reranker_candidates", 12) or 12),
-        "reranker_batch_size": int(models_cfg.get("reranker_batch_size", 16) or 16),
+        "rebuild_index": _as_bool(index_cfg.get("rebuild", retrieval_cfg.get("rebuild_index", False)), default=False),
+        "skip_if_unchanged": _as_bool(
+            index_cfg.get("skip_if_unchanged", retrieval_cfg.get("skip_if_unchanged", True)),
+            default=True,
+        ),
+        "default_k": default_k,
+        "use_reranker": _as_bool(reranker_cfg.get("enabled", models_cfg.get("use_reranker", False)), default=False),
+        "reranker_model": str(reranker_cfg.get("model", models_cfg.get("reranker_model", "")) or ""),
+        "reranker_candidates": int(reranker_cfg.get("candidates", models_cfg.get("reranker_candidates", 12)) or 12),
+        "reranker_batch_size": int(reranker_cfg.get("batch_size", models_cfg.get("reranker_batch_size", 16)) or 16),
     }
 
 def _options_fingerprint() -> str:
@@ -713,7 +739,8 @@ def vector_db_search(query: str, k: Optional[int] = None, use_reranker: bool = F
     default_k = int(_RUNTIME_OPTIONS.get("default_k", 4) or 4)
     k_final = k if isinstance(k, int) and k > 0 else default_k
 
-    if use_reranker:
+    reranker_enabled = use_reranker or _as_bool(_RUNTIME_OPTIONS.get("use_reranker"), default=False)
+    if reranker_enabled:
         passages = _rerank_passages(store, query=query, k_final=k_final)
     else:
         passages = store.similarity_search(query, k_final)

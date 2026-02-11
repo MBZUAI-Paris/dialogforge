@@ -4,8 +4,28 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
+
+_DOTENV_ALLOWED_EXACT_KEYS: set[str] = {
+    "LLM_USER_API_KEY_ENV",
+    "LLM_ASSISTANT_API_KEY_ENV",
+    "LLM_JUDGE_API_KEY_ENV",
+}
+_DOTENV_DEPRECATED_EXACT_KEYS: dict[str, str] = {
+    "LLM_QA_GENERATOR_API_KEY_ENV": "LLM_USER_API_KEY_ENV",
+    "LLM_KB_RESPONDER_API_KEY_ENV": "LLM_ASSISTANT_API_KEY_ENV",
+    "LLM_QA_JUDGE_API_KEY_ENV": "LLM_JUDGE_API_KEY_ENV",
+}
+_DOTENV_ALLOWED_SECRET_SUFFIXES: tuple[str, ...] = (
+    "_API_KEY",
+    "_TOKEN",
+    "_ACCESS_TOKEN",
+    "_SECRET",
+    "_SECRET_KEY",
+)
+LOGGER = logging.getLogger("dlgforge.env")
 
 def env_flag(name: str, default: bool = False) -> bool:
     """Env flag.
@@ -140,5 +160,27 @@ def _load_dotenv_file(path: Path) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip("\"'")
+        if not _is_allowed_dotenv_key(key):
+            LOGGER.warning(
+                "[env] Ignoring non-secret .env key: %s. "
+                "Only secret keys and agent API-key mapping vars are loaded from .env.",
+                key,
+            )
+            continue
+        replacement = _DOTENV_DEPRECATED_EXACT_KEYS.get(key)
+        if replacement:
+            LOGGER.warning(
+                "DEPRECATED: `%s` in .env is legacy; use `%s`.",
+                key,
+                replacement,
+            )
         if key and key not in os.environ:
             os.environ[key] = value
+
+def _is_allowed_dotenv_key(key: str) -> bool:
+    token = str(key or "").strip()
+    if not token:
+        return False
+    if token in _DOTENV_ALLOWED_EXACT_KEYS or token in _DOTENV_DEPRECATED_EXACT_KEYS:
+        return True
+    return any(token.endswith(suffix) for suffix in _DOTENV_ALLOWED_SECRET_SUFFIXES)

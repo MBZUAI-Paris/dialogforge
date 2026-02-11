@@ -166,20 +166,29 @@ def resolve_question_seed(cfg: Dict[str, Any]) -> str:
         cfg (Dict[str, Any]): Loaded runtime configuration.
 
     Returns:
-        str: Value of `run.question_seed`, or an empty string when unset.
+        str: Value of `run.data.seeding.question`, or an empty string when unset.
 
     Examples:
         >>> from dlgforge.config.personas import resolve_question_seed
-        >>> resolve_question_seed({"run": {"question_seed": "seed-1"}})
+        >>> resolve_question_seed({"run": {"data": {"seeding": {"question": "seed-1"}}}})
         'seed-1'
     """
-    return str((cfg.get("run", {}) or {}).get("question_seed", "") or "")
+    run_cfg = cfg.get("run", {}) or {}
+    data_cfg = run_cfg.get("data", {}) if isinstance(run_cfg.get("data"), dict) else {}
+    seeding_cfg = data_cfg.get("seeding", {}) if isinstance(data_cfg.get("seeding"), dict) else {}
+    canonical = str(seeding_cfg.get("question", "") or "").strip()
+    if canonical:
+        return canonical
+    legacy = str(run_cfg.get("question_seed", "") or "").strip()
+    if legacy:
+        return legacy
+    return str(run_cfg.get("seed_question", "") or "")
 
 def build_persona_rng(cfg: Dict[str, Any]) -> random.Random:
     """Build a deterministic RNG for persona selection.
 
-    Uses `run.question_seed` when present; otherwise falls back to current UTC
-    timestamp for non-deterministic runs.
+    Uses `run.data.seeding.question` when present; otherwise falls back to
+    current UTC timestamp for non-deterministic runs.
 
     Args:
         cfg (Dict[str, Any]): Loaded runtime configuration.

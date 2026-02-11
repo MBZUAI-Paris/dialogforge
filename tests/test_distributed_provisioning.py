@@ -116,7 +116,7 @@ def test_attach_provisioner_requires_endpoints() -> None:
     try:
         asyncio.run(AttachProvisioner().start(cfg))
     except RuntimeError as err:
-        assert "llm.backend=vllm_attach" in str(err)
+        assert "llm.mode=vllm_attach" in str(err)
     else:
         raise AssertionError("Expected RuntimeError when no endpoints are configured")
 

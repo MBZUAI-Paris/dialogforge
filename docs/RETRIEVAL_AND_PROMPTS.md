@@ -5,8 +5,8 @@
 
 Key behaviors:
 - indexes `.txt`, `.md`, and `.pdf` files recursively from the knowledge directory.
-- chunks content by configurable `chunk_size` and `overlap`.
-- persists index data when `persist_dir` is configured.
+- chunks content by configurable `tools.retrieval.chunking.chunk_size` and `tools.retrieval.chunking.chunk_overlap`.
+- persists index data when `tools.retrieval.index.persist_dir` is configured.
 - can skip expensive re-indexing via fingerprint/cache checks when unchanged.
 
 ## Query path
@@ -38,11 +38,11 @@ Templates are rendered with runtime values and enforced as JSON-only contracts i
 ## Tool-calling behavior
 In assistant stage (`runner.py`):
 - tool schema always includes KB retrieval.
-- web search tool is added only when `tools.web_search_enabled=true`.
+- web search tool is added only when `tools.web_search.enabled=true`.
 - tool calls are executed and appended back to chat messages before final assistant JSON is parsed.
 
 ## Practical tuning knobs
-- retrieval depth: `retrieval.default_k`
+- retrieval depth: `tools.retrieval.top_k`
 - dedup retries: `coverage.question_dedup_retries`
-- reranker path: `models.use_reranker` and related model/batch settings
-- language-aware seed topics: `run.seed_topics_*`
+- reranker path: `tools.retrieval.reranker.enabled` and related `tools.retrieval.reranker.*` settings
+- language-aware seed topics: `run.data.seeding.topics.*`

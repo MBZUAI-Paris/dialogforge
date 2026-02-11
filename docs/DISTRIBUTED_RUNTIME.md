@@ -11,13 +11,13 @@ Entry path:
 Bootstrap stages:
 1. Initialize Ray runtime (`ray.address` with optional local fallback for `auto`).
 2. Validate Postgres DSN and connectivity (`SELECT 1`).
-3. Select provisioner based on `llm.backend`.
+3. Select provisioner based on `llm.mode`.
 4. Optionally spawn worker and coordinator actors.
 5. Execute generation under bootstrap env overrides.
 6. Stop provisioned resources and optionally shutdown Ray started by bootstrap.
 
 ## Backend behavior
-- `openai`: no vLLM provisioning; routed endpoint overrides are not required.
+- `api`: no vLLM provisioning; routed endpoint overrides are not required.
 - `vllm_attach`: validates configured endpoints (`/v1/models`) before run.
 - `vllm_managed`: starts vLLM server actors on Ray workers and waits until healthy.
 
@@ -30,10 +30,10 @@ Bootstrap stages:
 ## Runtime env overrides injected by bootstrap
 Typical overrides set for the coordinator execution environment:
 - `DLGFORGE_RUN_BOOTSTRAPPED=1`
-- `LLM_BACKEND=<backend>`
+- `LLM_MODE=<mode>`
 - `LLM_ROUTING_STRATEGY=<strategy>` (when endpoints exist)
 - `LLM_ROUTING_ENDPOINTS_JSON=<json>` (when endpoints exist)
-- `LLM_MODEL=<served_model_name>` in managed mode when model is otherwise unset
+- `LLM_QA_GENERATOR_MODEL=<served_model_name>` in managed mode when user model is otherwise unset
 
 ## Failure modes
 Common bootstrap failures:

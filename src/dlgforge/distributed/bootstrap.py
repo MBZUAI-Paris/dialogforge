@@ -80,29 +80,29 @@ class RunBootstrap:
         
         """
         _ = cfg
-        distributed_cfg = ((self.cfg.get("run", {}) or {}).get("distributed", {}) or {})
-        executor = str(distributed_cfg.get("executor") or "ray").strip().lower()
-        if executor != "ray":
+        distributed_cfg = _resolve_distributed_cfg(self.cfg)
+        backend = str(distributed_cfg.get("backend") or distributed_cfg.get("executor") or "ray").strip().lower()
+        if backend != "ray":
             raise RuntimeError(
-                f"Unsupported run.distributed.executor='{executor}'. Only 'ray' is currently implemented."
+                f"Unsupported run.distributed.backend='{backend}'. Only 'ray' is currently implemented."
             )
 
         ray, started_ray = _initialize_ray_runtime(self.cfg)
 
         await _initialize_postgres(self.cfg)
 
-        backend = str((self.cfg.get("llm", {}) or {}).get("backend") or "openai").strip().lower()
-        self._provisioner = _select_provisioner(backend)
+        mode = _resolve_llm_mode(self.cfg)
+        self._provisioner = _select_provisioner(mode)
 
         endpoints = await self._provisioner.start(self.cfg)
-        env_overrides = _build_env_overrides(self.cfg, backend=backend, endpoints=endpoints)
+        env_overrides = _build_env_overrides(self.cfg, mode=mode, endpoints=endpoints)
 
         workers: List[Any] = []
         spawn_cfg = distributed_cfg.get("spawn", {}) if isinstance(distributed_cfg.get("spawn"), dict) else {}
         spawn_workers = bool(spawn_cfg.get("workers", True))
         spawn_coordinator = bool(spawn_cfg.get("coordinator", True))
 
-        ray_actor_cfg = (self.cfg.get("ray", {}) or {}).get("actor", {}) or {}
+        ray_actor_cfg = (_resolve_ray_cfg(self.cfg).get("actor", {}) or {})
         worker_replicas_qa = _as_int(ray_actor_cfg.get("replicas_qa"), default=1)
         worker_replicas_complete = _as_int(ray_actor_cfg.get("replicas_complete"), default=1)
         worker_num_cpus = float(ray_actor_cfg.get("num_cpus") or 1.0)
@@ -165,15 +165,15 @@ def run_bootstrap(config_path: str | Path, cfg: Dict[str, Any]) -> None:
     """
     asyncio.run(RunBootstrap(config_path=config_path, cfg=cfg).run(cfg))
 
-def _select_provisioner(backend: str) -> VLLMProvisioner:
-    if backend == "openai":
+def _select_provisioner(mode: str) -> VLLMProvisioner:
+    if mode == "api":
         return NoopProvisioner()
-    if backend == "vllm_attach":
+    if mode == "vllm_attach":
         return AttachProvisioner()
-    if backend == "vllm_managed":
+    if mode == "vllm_managed":
         return ManagedRayVLLMProvisioner()
     raise RuntimeError(
-        f"Unknown llm.backend='{backend}'. Supported values: openai, vllm_attach, vllm_managed."
+        f"Unknown llm.mode='{mode}'. Supported values: api, vllm_attach, vllm_managed."
     )
 
 async def _initialize_postgres(cfg: Dict[str, Any]) -> None:
@@ -200,14 +200,14 @@ async def _initialize_postgres(cfg: Dict[str, Any]) -> None:
     finally:
         await conn.close()
 
-def _build_env_overrides(cfg: Dict[str, Any], backend: str, endpoints: List[EndpointSpec]) -> Dict[str, str]:
+def _build_env_overrides(cfg: Dict[str, Any], mode: str, endpoints: List[EndpointSpec]) -> Dict[str, str]:
     llm_cfg = cfg.get("llm", {}) or {}
     routing_cfg = llm_cfg.get("routing", {}) if isinstance(llm_cfg.get("routing"), dict) else {}
     strategy = str(routing_cfg.get("strategy") or "weighted_least_inflight")
 
     env: Dict[str, str] = {
         "DLGFORGE_RUN_BOOTSTRAPPED": "1",
-        "LLM_BACKEND": backend,
+        "LLM_MODE": mode,
     }
 
     if endpoints:
@@ -217,11 +217,19 @@ def _build_env_overrides(cfg: Dict[str, Any], backend: str, endpoints: List[Endp
     # If managed vLLM provides a served model name and no model is configured, promote it.
     vllm_cfg = llm_cfg.get("vllm", {}) if isinstance(llm_cfg.get("vllm"), dict) else {}
     served_model_name = str(vllm_cfg.get("served_model_name") or "").strip()
-    model = str(llm_cfg.get("model") or "").strip()
-    if backend == "vllm_managed" and served_model_name and not model:
-        env["LLM_MODEL"] = served_model_name
+    user_cfg = ((llm_cfg.get("agents", {}) or {}).get("user", {}) or {})
+    model = str(user_cfg.get("model") or "").strip()
+    if mode == "vllm_managed" and served_model_name and not model:
+        env["LLM_QA_GENERATOR_MODEL"] = served_model_name
 
     return env
+
+def _resolve_llm_mode(cfg: Dict[str, Any]) -> str:
+    llm_cfg = cfg.get("llm", {}) or {}
+    mode_raw = str(llm_cfg.get("mode") or llm_cfg.get("backend") or "api").strip().lower()
+    if mode_raw == "openai":
+        return "api"
+    return mode_raw
 
 def _run_local_generation(config_path: str, env_overrides: Dict[str, str]) -> None:
     from dlgforge.pipeline.runner import run
@@ -262,7 +270,7 @@ def _initialize_ray_runtime(cfg: Dict[str, Any]) -> tuple[Any, bool]:
     if ray.is_initialized():
         return ray, False
 
-    ray_cfg = cfg.get("ray", {}) or {}
+    ray_cfg = _resolve_ray_cfg(cfg)
     address = str(ray_cfg.get("address") or "auto").strip() or "auto"
     namespace = str(ray_cfg.get("namespace") or "dlgforge").strip() or "dlgforge"
     auto_start_local = _as_bool(ray_cfg.get("auto_start_local"), default=True)
@@ -299,6 +307,19 @@ def _allow_local_fallback(address: str, auto_start_local: bool, err: Exception) 
         "could not find any running ray instance" in message
         or "please specify the one to connect to" in message
     )
+
+def _resolve_distributed_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    run_cfg = cfg.get("run", {}) if isinstance(cfg.get("run"), dict) else {}
+    distributed_cfg = run_cfg.get("distributed", {}) if isinstance(run_cfg.get("distributed"), dict) else {}
+    return distributed_cfg if isinstance(distributed_cfg, dict) else {}
+
+def _resolve_ray_cfg(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    distributed_cfg = _resolve_distributed_cfg(cfg)
+    nested_ray_cfg = distributed_cfg.get("ray", {}) if isinstance(distributed_cfg.get("ray"), dict) else {}
+    if nested_ray_cfg:
+        return nested_ray_cfg
+    legacy_ray_cfg = cfg.get("ray", {})
+    return legacy_ray_cfg if isinstance(legacy_ray_cfg, dict) else {}
 
 def _as_bool(raw: Any, default: bool) -> bool:
     if raw is None:

@@ -9,7 +9,7 @@ flowchart TD
   A["dlgforge run config.yaml"] --> B["Load config (defaults + YAML + env overrides)"]
   B --> C{"run.distributed.enabled"}
   C -->|false| D["Initialize local pipeline runtime"]
-  C -->|true| E["RunBootstrap (Ray + Postgres + backend checks)"]
+  C -->|true| E["RunBootstrap (Ray + Postgres + mode checks)"]
   E --> F["Coordinator actor executes generation run"]
   D --> G["Configure retrieval + base inputs"]
   F --> G
@@ -35,8 +35,8 @@ flowchart LR
 flowchart TD
   A["RunBootstrap"] --> B["Initialize Ray runtime"]
   B --> C["Validate Postgres DSN and connectivity"]
-  C --> D{"llm.backend"}
-  D -->|openai| E["No vLLM provisioning"]
+  C --> D{"llm.mode"}
+  D -->|api| E["No vLLM provisioning"]
   D -->|vllm_attach| F["Validate configured endpoint health"]
   D -->|vllm_managed| G["Provision managed vLLM server actors"]
   E --> H["Spawn coordinator + workers"]

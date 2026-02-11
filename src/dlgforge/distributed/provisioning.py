@@ -203,7 +203,7 @@ class AttachProvisioner:
         endpoints = _extract_routing_endpoints(cfg)
         if not endpoints:
             raise RuntimeError(
-                "llm.backend=vllm_attach requires llm.routing.endpoints with at least one endpoint."
+                "llm.mode=vllm_attach requires llm.routing.endpoints with at least one endpoint."
             )
 
         await _validate_endpoints(endpoints)
@@ -284,12 +284,12 @@ class ManagedRayVLLMProvisioner:
         vllm_cfg = (cfg.get("llm", {}) or {}).get("vllm", {}) or {}
         replicas = _as_int(vllm_cfg.get("replicas"), default=1)
         if replicas <= 0:
-            raise RuntimeError("llm.vllm.replicas must be >= 1 for vllm_managed backend.")
+            raise RuntimeError("llm.vllm.replicas must be >= 1 for llm.mode=vllm_managed.")
 
         model = str(vllm_cfg.get("model") or "").strip()
         served_model_name = str(vllm_cfg.get("served_model_name") or "").strip() or model
         if not model:
-            raise RuntimeError("llm.vllm.model is required for llm.backend=vllm_managed.")
+            raise RuntimeError("llm.vllm.model is required for llm.mode=vllm_managed.")
 
         host = str(vllm_cfg.get("host") or "0.0.0.0").strip()
         advertise_host = str(vllm_cfg.get("advertise_host") or "127.0.0.1").strip()
@@ -486,6 +486,6 @@ def _ensure_vllm_available() -> None:
     if shutil.which("vllm"):
         return
     raise RuntimeError(
-        "llm.backend=vllm_managed requires `vllm` to be installed and available in PATH. "
+        "llm.mode=vllm_managed requires `vllm` to be installed and available in PATH. "
         "Install managed backend deps: `python -m pip install -e \".[vllm]\"`."
     )

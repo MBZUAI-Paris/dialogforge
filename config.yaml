@@ -1,59 +1,46 @@
 run:
-  n_turns: 2
   batch_size: 2
   total_samples: 1024
-  min_turns: 2
-  max_turns: 12
-  turn_count_distribution: poisson
-  turn_count_mean: 6.0
   target_languages: ["morocco", "msa", "gulf", "english", "levantine"] # list of target languages; total_samples is generated per language
-  seed_question: ""
-  question_seed: ""
   run_id: ""
   resume_run_id: ""
-  seed_topics_path: data/seeds/topics.yaml
-  seed_topics_variant: ""
-  seed_topics_probability: 0.35
-  seed_topics_enabled: false
+  turns:
+    mode: range # exact | range
+    exact: null
+    min: 2
+    max: 12
+    distribution: poisson # uniform | poisson | exponential
+    mean: 6.0
+  data:
+    seeding:
+      question: ""
+      topics:
+        path: data/seeds/topics.yaml
+        enabled: false
+        variant: ""
+        probability: 0.35
   distributed:
     enabled: false
-    executor: ray
+    backend: ray
     spawn:
       coordinator: true
       workers: true
-
-models:
-  embedding_model: sentence-transformers/all-MiniLM-L6-v2
-  use_reranker: false
-  reranker_model: Qwen/Qwen3-Reranker-4B
-  reranker_backend: qwen3
-  reranker_instruction: >
-    Given a user question and a candidate passage from the knowledge base,
-    decide whether the passage contains information needed to answer the question.
-  reranker_max_length: 8192
-  qwen3_reranker_cmd: ""
-  reranker_candidates: 12
-  reranker_batch_size: 16
+    ray:
+      address: auto
+      auto_start_local: true # when true and ray.address=auto finds no cluster, dlgforge starts a local Ray runtime
+      namespace: dlgforge
+      actor:
+        num_cpus: 1.0
+        num_gpus: 0.0
+        coordinator_num_cpus: 1.0
+        replicas_qa: 2
+        replicas_complete: 2
 
 llm:
-  backend: openai # openai | vllm_attach | vllm_managed
-  provider: "" # for mixed LLM providers, you can specify provider per agent in llm.agents section; for single provider use case, you can set it here and it will be used as default for all agents unless overridden in llm.agents section
-  model: "" # override with OPENAI_MODEL and will be used as default for all agents unless specified in agents section
-  # refer to https://docs.litellm.ai/docs/providers for base_url and api_key formats for different providers
-  # base_url: "https://api.openai.com/v1" # for openai API
-  # base_url: "http://localhost:1234/v1" # for vllm_attach with LM Studio
-  # base_url: "http://localhost:8000/v1" # for vllm_managed with vLLM
-  api_key: ""
-  api_key_env: ""
-  temperature: null
-  max_tokens: null
-  top_p: null
-  timeout: null
-  max_retries: null
-  extra: {}
+  mode: api # api | vllm_attach | vllm_managed
   routing:
     strategy: weighted_least_inflight
-    # required for llm.backend=vllm_attach when you already have a vllm cluster running; not needed for llm.backend=vllm_managed as the cluster will be created and managed by dlgforge, not needed when llm.backend=openai
+    # required for llm.mode=vllm_attach when you already have a vllm cluster running; not needed for llm.mode=vllm_managed as the cluster will be created and managed by dlgforge, not needed when llm.mode=api
     # endpoints: ["http://localhost:1234"] # for LM Studio
     # endpoints: ["http://localhost:8000"] # for vLLM
   vllm:
@@ -71,27 +58,36 @@ llm:
     auto_stop_on_exit: true
   agents:
     # refer to https://docs.litellm.ai/docs/providers for base_url and api_key formats for different providers
-    qa_generator:
+    user:
       provider: openai
       model: gpt-5.2 # gpt-5.2 , "openai/gpt-oss-20b"
       base_url: https://api.openai.com/v1
-    kb_responder:
+      temperature: null
+      max_tokens: null
+      top_p: null
+      timeout: null
+      max_retries: null
+      extra: {}
+    assistant:
       provider: gemini
       model: gemini/gemini-3-flash-preview # gpt-5.2 , "openai/gpt-oss-20b"
-    qa_judge: # qa_judge is ignored when judge.mode: offline in config.yaml.
+      base_url: ""
+      temperature: null
+      max_tokens: null
+      top_p: null
+      timeout: null
+      max_retries: null
+      extra: {}
+    judge: # judge is ignored when judge.mode: offline in config.yaml.
       provider: gemini
       model: gemini/gemini-3-flash-preview #gpt-5.2 , "openai/gpt-oss-20b"
-
-ray:
-  address: auto
-  auto_start_local: true # when true and ray.address=auto finds no cluster, dlgforge starts a local Ray runtime
-  namespace: dlgforge
-  actor:
-    num_cpus: 1.0
-    num_gpus: 0.0
-    coordinator_num_cpus: 1.0
-    replicas_qa: 2
-    replicas_complete: 2
+      base_url: ""
+      temperature: null
+      max_tokens: null
+      top_p: null
+      timeout: null
+      max_retries: null
+      extra: {}
 
 store:
   backend: postgres
@@ -102,18 +98,6 @@ store:
     statement_timeout_ms: 30000
 
 
-retrieval:
-  default_k: 4
-  chunk_size: 750
-  overlap: 150
-  persist_dir: knowledge_index
-  rebuild_index: false
-  skip_if_unchanged: true
-  embedding_backend: sentence_transformers
-  embedding_model_kwargs: {}
-  embedding_tokenizer_kwargs: {}
-  embedding_encode_kwargs: {}
-
 coverage:
   doc_coverage_mode: balanced
   doc_coverage_epsilon: 0.15
@@ -121,9 +105,39 @@ coverage:
   question_dedup_retries: 3
 
 tools:
-  web_search_enabled: false
-  serper_num_results: 5
-  serper_timeout: 30
+  web_search:
+    enabled: false
+    serper_num_results: 5
+    serper_timeout: 30
+  retrieval:
+    top_k: 4
+    chunking:
+      chunk_size: 750
+      chunk_overlap: 150
+    index:
+      persist_dir: knowledge_index
+      rebuild: false
+      skip_if_unchanged: true
+    embeddings:
+      backend: sentence_transformers
+      model: sentence-transformers/all-MiniLM-L6-v2
+      fallback_model: sentence-transformers/all-MiniLM-L6-v2
+      device: auto
+      fallback_on_cpu: true
+      model_kwargs: {}
+      tokenizer_kwargs: {}
+      encode_kwargs: {}
+    reranker:
+      enabled: false
+      model: Qwen/Qwen3-Reranker-4B
+      backend: qwen3
+      instruction: >
+        Given a user question and a candidate passage from the knowledge base,
+        decide whether the passage contains information needed to answer the question.
+      max_length: 8192
+      candidates: 12
+      batch_size: 16
+      cmd: null
 
 personas:
   enabled: true

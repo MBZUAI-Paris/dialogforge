@@ -6,7 +6,7 @@ Config values are resolved in this order:
 2. User YAML (`config.yaml`) deep-merged over defaults.
 3. Environment overrides applied in `load_config()`.
 4. Runtime-specific environment overrides applied later by distributed bootstrap (for routed endpoints and managed model wiring).
-5. LLM per-agent/global env resolution inside `resolve_llm_settings()` at call time.
+5. LLM per-agent env resolution inside `resolve_llm_settings()` at call time.
 
 ## `run`
 - `n_turns`: fixed turn count fallback.
@@ -26,16 +26,19 @@ Validation details:
 - `total_samples < 0` falls back to configured default.
 
 ## `llm`
-- `backend`: `openai|vllm_attach|vllm_managed`.
-- Shared keys: `provider`, `model`, `base_url`, `api_key`, `api_key_env`, `temperature`, `max_tokens`, `top_p`, `timeout`, `max_retries`, `extra`.
-- `agents.<agent>` overrides shared keys per logical agent.
+- `mode`: `api|vllm_attach|vllm_managed`.
+- all provider/model/base_url/sampling knobs are configured per role under `llm.agents.<role>.*`.
 - `routing`: endpoint list and strategy for routed execution.
-- `vllm`: managed-server settings used when backend is managed.
+- `vllm`: managed-server settings used when mode is `vllm_managed`.
 
-Per-agent model selection uses:
-- agent-specific env `LLM_<AGENT>_*`
-- global env `LLM_*`
-- `OPENAI_*` fallback for key/base URL/model
+Credential policy:
+- YAML must not contain `api_key` or `api_key_env` (global or per-agent).
+- agent credentials are environment-only via:
+  - `LLM_USER_API_KEY_ENV`
+  - `LLM_ASSISTANT_API_KEY_ENV`
+  - `LLM_JUDGE_API_KEY_ENV`
+- legacy aliases (`LLM_QA_GENERATOR_API_KEY_ENV`, `LLM_KB_RESPONDER_API_KEY_ENV`, `LLM_QA_JUDGE_API_KEY_ENV`) are still accepted with deprecation warnings.
+- each mapping variable must point to a non-empty provider secret env var (name is flexible; common patterns are `*_API_KEY` and `*_TOKEN`).
 
 ## `ray`
 - `address`: Ray address, commonly `auto`.
@@ -48,19 +51,14 @@ Per-agent model selection uses:
 - `postgres.dsn`: required for distributed run.
 - pool and timeout keys tune DB client behavior.
 
-## `retrieval`
-- `default_k`: retrieval depth.
-- `chunk_size`, `overlap`: chunking controls.
-- `persist_dir`, `rebuild_index`, `skip_if_unchanged`: index persistence policy.
-- embedding backend/model kwargs are configurable and can be env-overridden.
-
 ## `coverage`
 - controls document balancing and dedup retry budget.
 - `question_dedup_retries` directly impacts drop probability in high-collision datasets.
 
 ## `tools`
-- `web_search_enabled`: toggles tool availability in assistant stage.
-- `serper_num_results`, `serper_timeout`: Serper query controls.
+- `web_search.enabled`: toggles tool availability in assistant stage.
+- `web_search.serper_num_results`, `web_search.serper_timeout`: Serper query controls.
+- `retrieval.*`: retrieval depth, chunking, index, embeddings, and reranker controls.
 
 ## `personas`
 - `enabled`: persona injection on/off.
@@ -86,9 +84,9 @@ Important behavior:
 Common high-impact env keys handled in `load_config()`:
 - run: `N_TURNS`, `BATCH_SIZE`, `TOTAL_SAMPLES`, `MIN_TURNS`, `MAX_TURNS`, `TARGET_LANGUAGES`, `RUN_ID`, `RESUME_RUN_ID`
 - distributed/ray: `DISTRIBUTED_ENABLED`, `RAY_ADDRESS`, `RAY_AUTO_START_LOCAL`
-- retrieval: `KB_DEFAULT_K`, `KB_CHUNK_SIZE`, `KB_PERSIST_DIR`, embedding kwargs JSON keys
+- tools.retrieval: `KB_DEFAULT_K`, `KB_CHUNK_SIZE`, `KB_PERSIST_DIR`, embedding kwargs JSON keys
 - judge: `JUDGE_MODE`, `JUDGE_GRANULARITY`, `JUDGE_ENABLED`
 - output/export: `OUTPUT_DIR`, `HF_PUSH_*`
-- llm routing: `LLM_BACKEND`, `LLM_ROUTING_STRATEGY`, `LLM_ROUTING_ENDPOINTS_JSON`
+- llm routing/mode: `LLM_MODE`, `LLM_BACKEND` (legacy alias), `LLM_ROUTING_STRATEGY`, `LLM_ROUTING_ENDPOINTS_JSON`
 
 For the full source of truth, use `src/dlgforge/config/loader.py` and `src/dlgforge/llm/settings.py`.
